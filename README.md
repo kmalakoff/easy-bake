@@ -78,6 +78,7 @@ Also, if you are using TravisCI, you should add something like this to your proj
 "scripts": {
   "test": "node_modules/.bin/cake -c test"
 },
+```
 
 and a .travis.yaml to your project root file like:
 
