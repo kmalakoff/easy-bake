@@ -151,7 +151,7 @@ class EasyBake
         @timeLog("minified #{@YAMLRelative(output_name)}") unless options.silent
         options.callback?(result)
       catch e
-        @timeLog("failed to minify #{@YAMLRelative(output_name)} .... error code: #{e}")
+        @timeLog("failed to minify #{@YAMLRelative(output_name)} .... error code: #{e.code}")
         options.callback?(result | e.code)
 
   runCoffee: (args, options={}) ->
@@ -251,7 +251,7 @@ class EasyBake
       if code is 0
         @timeLog("tests passed #{test_filename}") unless options.silent
       else
-        @timeLog("tests failed #{test_filename}")
+        @timeLog("tests failed #{test_filename}  .... error code: #{code}")
       code != options.callback?(code)
       return code
 

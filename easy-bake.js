@@ -262,7 +262,7 @@ EasyBake = (function() {
         }
         return typeof options.callback === "function" ? options.callback(result) : void 0;
       } catch (e) {
-        this.timeLog("failed to minify " + (this.YAMLRelative(output_name)) + " .... error code: " + e);
+        this.timeLog("failed to minify " + (this.YAMLRelative(output_name)) + " .... error code: " + e.code);
         return typeof options.callback === "function" ? options.callback(result | e.code) : void 0;
       }
     }
@@ -438,7 +438,7 @@ EasyBake = (function() {
           _this.timeLog("tests passed " + test_filename);
         }
       } else {
-        _this.timeLog("tests failed " + test_filename);
+        _this.timeLog("tests failed " + test_filename + "  .... error code: " + code);
       }
       code !== (typeof options.callback === "function" ? options.callback(code) : void 0);
       return code;
