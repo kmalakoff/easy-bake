@@ -230,7 +230,7 @@ EasyBake = (function() {
       options = {};
     }
     result = code;
-    spawned = spawn("" + __dirname + "/node_modules/.bin/uglifyjs", ['-o', this.minifiedName(src), src]);
+    spawned = spawn('uglifyjs', ['-o', this.minifiedName(src), src]);
     return spawned.on('exit', function(code) {
       result |= code;
       if (!options.silent) {
@@ -252,7 +252,7 @@ EasyBake = (function() {
     } else {
       filenames = args.slice(_.indexOf(args, '-c') + 1);
     }
-    spawned = spawn("" + __dirname + "/node_modules/.bin/coffee", args);
+    spawned = spawn('coffee', args);
     spawned.stderr.on('data', function(data) {
       return process.stderr.write(data.toString());
     });

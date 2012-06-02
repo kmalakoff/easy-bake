@@ -124,7 +124,7 @@ class EasyBake
 
   minify: (src, options={}, code) ->
     result = code
-    spawned = spawn "#{__dirname}/node_modules/.bin/uglifyjs", ['-o', @minifiedName(src), src]
+    spawned = spawn 'uglifyjs', ['-o', @minifiedName(src), src]
     spawned.on 'exit', (code) =>
       result |= code
       @timeLog("minified #{src.replace("#{@YAML_dir}/", '')}") unless options.silent
@@ -137,7 +137,7 @@ class EasyBake
     else
       filenames = args.slice(_.indexOf(args, '-c')+1)
 
-    spawned = spawn "#{__dirname}/node_modules/.bin/coffee", args
+    spawned = spawn 'coffee', args
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
 

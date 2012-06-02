@@ -4,7 +4,7 @@ fs = require 'fs'
 wrench = require 'wrench'
 
 build = (watch) ->
-  coffee = spawn 'node_modules/.bin/coffee', (if watch then ['-w'] else []).concat(['-b', '-o', '.', '-c', 'src'])
+  coffee = spawn 'coffee', (if watch then ['-w'] else []).concat(['-b', '-o', '.', '-c', 'src'])
   coffee.stderr.on 'data', (data) -> process.stderr.write data.toString()
   coffee.stdout.on 'data', (data) ->
     print data.toString()
