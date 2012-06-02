@@ -11,7 +11,7 @@ uglifyjs = require 'uglify-js'
 TEST_DEFAULT_TIMEOUT = 60000
 
 class Utils
-  @removeString: (string, remove_string) -> return string.replace("#{remove_string}/", '')
+  @removeString: (string, remove_string) -> return string.replace(remove_string, '')
 
   @extractSetOptions: (set, mode, defaults) ->
     set_options = _.clone(set)
@@ -41,7 +41,7 @@ class Utils
         count = pathed_files.length
         globber.glob("#{directory}/#{rel_file}").forEach((pathed_file) -> pathed_files.push(pathed_file))
         if count == pathed_files.length
-          rel_directory = Utils.removeString(directory, YAML_dir)
+          rel_directory = Utils.removeString(directory, "#{YAML_dir}/")
           console.log("warning: files not found #{directory}/#{rel_file}") if not no_files_ok or not _.contains(no_files_ok, rel_directory)
       )
       continue if not pathed_files.length
@@ -90,7 +90,7 @@ class EasyBake
     return "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
   minifiedName: (output_name) -> return output_name.replace(/\.js$/, ".min.js")
 
-  YAMLRelative: (pathed_filename) -> return Utils.removeString(pathed_filename, @YAML_dir)
+  YAMLRelative: (pathed_filename) -> return Utils.removeString(pathed_filename, "#{@YAML_dir}/")
 
   runClean: (array, directory, options) =>
     for item in array
@@ -170,10 +170,11 @@ class EasyBake
       )
       for source_name in filenames
         output_name = @minifiedOutputName(output_directory, source_name)
+        build_filename = @YAMLRelative(output_name)
         if code is 0
-          @timeLog("built #{@YAMLRelative(output_name)}") unless options.silent
+          @timeLog("built #{build_filename}") unless options.silent
         else
-          @timeLog("failed to build #{@YAMLRelative(output_name)} .... error code: code")
+          @timeLog("failed to build #{build_filename} .... error code: code")
         @minify(output_name, options, code) if options.minimize
       original_callback?(code) unless options.minimize
 
@@ -251,7 +252,7 @@ class EasyBake
       if code is 0
         @timeLog("tests passed #{test_filename}") unless options.silent
       else
-        @timeLog("tests failed #{test_filename}  .... error code: #{code}")
+        @timeLog("tests failed #{test_filename} .... error code: #{code}")
       code != options.callback?(code)
       return code
 

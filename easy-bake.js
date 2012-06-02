@@ -27,7 +27,7 @@ Utils = (function() {
   function Utils() {}
 
   Utils.removeString = function(string, remove_string) {
-    return string.replace("" + remove_string + "/", '');
+    return string.replace(remove_string, '');
   };
 
   Utils.extractSetOptions = function(set, mode, defaults) {
@@ -69,7 +69,7 @@ Utils = (function() {
           return pathed_files.push(pathed_file);
         });
         if (count === pathed_files.length) {
-          rel_directory = Utils.removeString(directory, YAML_dir);
+          rel_directory = Utils.removeString(directory, "" + YAML_dir + "/");
           if (!no_files_ok || !_.contains(no_files_ok, rel_directory)) {
             return console.log("warning: files not found " + directory + "/" + rel_file);
           }
@@ -165,7 +165,7 @@ EasyBake = (function() {
   };
 
   EasyBake.prototype.YAMLRelative = function(pathed_filename) {
-    return Utils.removeString(pathed_filename, this.YAML_dir);
+    return Utils.removeString(pathed_filename, "" + this.YAML_dir + "/");
   };
 
   EasyBake.prototype.runClean = function(array, directory, options) {
@@ -279,7 +279,7 @@ EasyBake = (function() {
       return process.stderr.write(data.toString());
     });
     notify = function(code) {
-      var filenames, index, original_callback, output_directory, output_name, source_name, _i, _len;
+      var build_filename, filenames, index, original_callback, output_directory, output_name, source_name, _i, _len;
       output_directory = (index = _.indexOf(args, '-o')) >= 0 ? "" + args[index + 1] : '';
       filenames = (index = _.indexOf(args, '-j')) >= 0 ? [args[index + 1]] : filenames = args.slice(_.indexOf(args, '-c') + 1);
       original_callback = options.callback;
@@ -294,12 +294,13 @@ EasyBake = (function() {
       for (_i = 0, _len = filenames.length; _i < _len; _i++) {
         source_name = filenames[_i];
         output_name = _this.minifiedOutputName(output_directory, source_name);
+        build_filename = _this.YAMLRelative(output_name);
         if (code === 0) {
           if (!options.silent) {
-            _this.timeLog("built " + (_this.YAMLRelative(output_name)));
+            _this.timeLog("built " + build_filename);
           }
         } else {
-          _this.timeLog("failed to build " + (_this.YAMLRelative(output_name)) + " .... error code: code");
+          _this.timeLog("failed to build " + build_filename + " .... error code: code");
         }
         if (options.minimize) {
           _this.minify(output_name, options, code);
@@ -438,7 +439,7 @@ EasyBake = (function() {
           _this.timeLog("tests passed " + test_filename);
         }
       } else {
-        _this.timeLog("tests failed " + test_filename + "  .... error code: " + code);
+        _this.timeLog("tests failed " + test_filename + " .... error code: " + code);
       }
       code !== (typeof options.callback === "function" ? options.callback(code) : void 0);
       return code;
