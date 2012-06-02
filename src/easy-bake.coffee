@@ -6,10 +6,13 @@ yaml = require 'js-yaml'
 wrench = require 'wrench'
 _ = require 'underscore'
 globber = require 'glob-whatev'
+uglifyjs = require 'uglify-js'
 
 TEST_DEFAULT_TIMEOUT = 60000
 
 class Utils
+  @removeString: (string, remove_string) -> return string.replace("#{remove_string}/", '')
+
   @extractSetOptions: (set, mode, defaults) ->
     set_options = _.clone(set)
     if set.options
@@ -38,7 +41,7 @@ class Utils
         count = pathed_files.length
         globber.glob("#{directory}/#{rel_file}").forEach((pathed_file) -> pathed_files.push(pathed_file))
         if count == pathed_files.length
-          rel_directory = directory.replace("#{YAML_dir}/", '')
+          rel_directory = Utils.removeString(directory, YAML_dir)
           console.log("warning: files not found #{directory}/#{rel_file}") if not no_files_ok or not _.contains(no_files_ok, rel_directory)
       )
       continue if not pathed_files.length
@@ -81,7 +84,13 @@ class EasyBake
       return directory
     else
       return "#{@YAML_dir}/#{directory}"
-  minifiedName: (src) -> return src.replace(/\.js$/, ".min.js")
+
+  minifiedOutputName: (output_directory, source_name) ->
+    output_directory = @resolveDirectory(output_directory, path.dirname(source_name))
+    return "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
+  minifiedName: (output_name) -> return output_name.replace(/\.js$/, ".min.js")
+
+  YAMLRelative: (pathed_filename) -> return Utils.removeString(pathed_filename, @YAML_dir)
 
   runClean: (array, directory, options) =>
     for item in array
@@ -122,43 +131,51 @@ class EasyBake
     @runClean(files_to_delete, false, options)
     options.callback?(0)
 
-  minify: (src, options={}, code) ->
+  minify: (output_name, options={}, code) ->
     result = code
-    spawned = spawn 'uglifyjs', ['-o', @minifiedName(src), src]
-    spawned.on 'exit', (code) =>
-      result |= code
-      @timeLog("minified #{src.replace("#{@YAML_dir}/", '')}") unless options.silent
+    args = ['-o', @minifiedName(output_name), output_name]
+
+    if options.preview
+      console.log("uglifyjs #{args.join(' ')}")
       options.callback?(result)
 
-  runCoffee: (args, options={}) ->
-    output_directory = if ((index = _.indexOf(args, '-o')) >= 0) then "#{args[index+1]}" else ''
-    if ((index = _.indexOf(args, '-j')) >= 0)
-      source_name = args[index+1]
     else
-      filenames = args.slice(_.indexOf(args, '-c')+1)
+      try
+        src = fs.readFileSync(args[2], 'utf8')
+        header = if ((header_index = src.indexOf('*/'))>0) then src.substr(0, header_index+2) else ''
+        ast = uglifyjs.parser.parse(src)
+        ast = uglifyjs.uglify.ast_mangle(ast)
+        ast = uglifyjs.uglify.ast_squeeze(ast)
+        src = header + uglifyjs.uglify.gen_code(ast) + ';'
+        fs.writeFileSync(args[1], src, 'utf8')
+        @timeLog("minified #{@YAMLRelative(output_name)}") unless options.silent
+        options.callback?(result)
+      catch e
+        @timeLog("failed to minify #{@YAMLRelative(output_name)} .... error code: #{e}")
+        options.callback?(result | e.code)
 
+  runCoffee: (args, options={}) ->
     spawned = spawn 'coffee', args
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
 
     notify = (code) =>
-      if filenames
-        original_callback = options.callback; options = _.clone(options); options.callback = null
-        options.callback = Utils.afterWithCollect(filenames.length, (result) =>
-          result |= original_callback(result) if original_callback
-          return result
-        )
-        for source_name in filenames
-          output_directory = @resolveDirectory(output_directory, path.dirname(source_name))
-          output_name = "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
-          @timeLog("built #{output_name.replace("#{@YAML_dir}/", '')}") unless options.silent
-          @minify(output_name, options, code) if options.minimize
-        original_callback?(code) unless options.minimize
-      else
-        output_directory = @resolveDirectory(output_directory, path.dirname(source_name))
-        output_name = "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
-        @timeLog("built #{output_name.replace("#{@YAML_dir}/", '')}") unless options.silent
-        if options.minimize then @minify(output_name, options, code) else options.callback?(code)
+      output_directory = if ((index = _.indexOf(args, '-o')) >= 0) then "#{args[index+1]}" else ''
+      filenames = if ((index = _.indexOf(args, '-j')) >= 0) then [args[index+1]] else filenames = args.slice(_.indexOf(args, '-c')+1)
+
+      original_callback = options.callback; options = _.clone(options); options.callback = null
+      options.callback = Utils.afterWithCollect(filenames.length, (result) =>
+        result |= original_callback(result) if original_callback
+        return result
+      )
+      for source_name in filenames
+        output_name = @minifiedOutputName(output_directory, source_name)
+        if code is 0
+          @timeLog("built #{@YAMLRelative(output_name)}") unless options.silent
+        else
+          @timeLog("failed to build #{@YAMLRelative(output_name)} .... error code: code")
+        @minify(output_name, options, code) if options.minimize
+      original_callback?(code) unless options.minimize
 
     # watch vs build callbacks are slightly different
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
@@ -193,7 +210,19 @@ class EasyBake
       if options.preview
         console.log('************build preview*************')
         for coffee_command in coffee_commands_to_run
-          console.log("coffee #{coffee_command.args.join(' ')}#{if coffee_command.minimize then ' ***minimized***' else ''}")
+          args = coffee_command.args
+          minimize = coffee_command
+          console.log("coffee #{args.join(' ')}")
+
+          if coffee_command.minimize
+            output_directory = if ((index = _.indexOf(args, '-o')) >= 0) then "#{args[index+1]}" else ''
+            filenames = if ((index = _.indexOf(args, '-j')) >= 0) then [args[index+1]] else filenames = args.slice(_.indexOf(args, '-c')+1)
+            for source_name in filenames
+              output_name = @minifiedOutputName(output_directory, source_name)
+              console.log(output_name)
+              @minify(output_name, options, code) if minimize
+
+        spawned = spawn 'uglifyjs',
         original_callback?(0)
 
       else
@@ -218,7 +247,7 @@ class EasyBake
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
-      test_filename = args[1].replace("file://#{@YAML_dir}/", '')
+      test_filename = Utils.removeString(args[1], "file://#{@YAML_dir}/")
       if code is 0
         @timeLog("tests passed #{test_filename}") unless options.silent
       else
