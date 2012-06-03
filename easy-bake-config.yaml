@@ -1,5 +1,5 @@
 easy-bake:
-  output: lib
+  output: '{root}'
   join: easy-bake.js
   files:
     - src/easy-bake_core.coffee

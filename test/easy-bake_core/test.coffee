@@ -1,7 +1,7 @@
 PROJECT_ROOT = "#{__dirname}/../../.."
 
 # EasyBake
-eb = if not @eb and (typeof(require) != 'undefined') then require("#{PROJECT_ROOT}/lib/easy-bake") else @eb
+eb = if not @eb and (typeof(require) != 'undefined') then require("#{PROJECT_ROOT}/easy-bake") else @eb
 
 exports.easy_bake_core =
   'TEST DEPENDENCY MISSING': (test) ->

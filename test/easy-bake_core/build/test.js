@@ -3,7 +3,7 @@ var PROJECT_ROOT, eb;
 
 PROJECT_ROOT = "" + __dirname + "/../../..";
 
-eb = !this.eb && (typeof require !== 'undefined') ? require("" + PROJECT_ROOT + "/lib/easy-bake") : this.eb;
+eb = !this.eb && (typeof require !== 'undefined') ? require("" + PROJECT_ROOT + "/easy-bake") : this.eb;
 
 exports.easy_bake_core = {
   'TEST DEPENDENCY MISSING': function(test) {
