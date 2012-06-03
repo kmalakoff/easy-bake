@@ -236,7 +236,7 @@ class eb.Baker
     @build(_.extend(options, {watch: true}))
 
   runTest: (command, args, options={}) ->
-    spawned = spawn command, args
+    spawned = spawn (if (command is 'phantomjs') then command else "node_modules/.bin/#{command}"), args
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
@@ -272,7 +272,7 @@ class eb.Baker
         for file in file_group.files
           args = []
           args.push(set_options.runner) if set_options.runner
-          args.push("file://#{fs.realpathSync(file)}")
+          if (set_options.command is 'phantomjs') then args.push("file://#{fs.realpathSync(file)}") else args.push(@YAMLRelative(file))
           args.push(set_options.timeout) if set_options.timeout
           tests_to_run.push({command: set_options.command, args: args})
 
