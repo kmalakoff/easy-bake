@@ -19,7 +19,6 @@ tests:
     - test/easy-bake_core
   options:
     test:
-      timeout: 60000
-      runner: phantomjs-nodeunit-runner.js
+      command: nodeunit
     files:
       - '**/*.js'

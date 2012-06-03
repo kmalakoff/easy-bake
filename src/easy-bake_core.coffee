@@ -235,8 +235,8 @@ class eb.Baker
   watch: (options={}) ->
     @build(_.extend(options, {watch: true}))
 
-  runTest: (args, options={}) ->
-    spawned = spawn 'phantomjs', args
+  runTest: (command, args, options={}) ->
+    spawned = spawn command, args
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
@@ -260,16 +260,22 @@ class eb.Baker
       set_options = eb.Utils.extractSetOptions(set, 'test', {
         timeout: TEST_DEFAULT_TIMEOUT
         directories: ['.']
+        command: 'phantomjs'
         files: ['**/*.html']
       })
 
-      (console.log("Missing runner for tests: #{set_name}"); continue) unless set_options.runner
-      set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}" unless path.existsSync(set_options.runner)
+      # (console.log("Missing runner for tests: #{set_name}"); continue) unless set_options.runner
+      if set_options.runner
+        set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}" unless path.existsSync(set_options.runner)
 
       file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
       for file_group in file_groups
         for file in file_group.files
-          tests_to_run.push({args: [set_options.runner, "file://#{fs.realpathSync(file)}", set_options.timeout]})
+          args = []
+          args.push(set_options.runner) if set_options.runner
+          args.push("file://#{fs.realpathSync(file)}")
+          args.push(set_options.timeout) if set_options.timeout
+          tests_to_run.push({command: set_options.command, args: args})
 
     # execute or preview callback
     original_callback = options.callback; options = _.clone(options); options.callback = null
@@ -277,7 +283,7 @@ class eb.Baker
       if options.preview
         console.log('************test preview**************')
         for test_to_run in tests_to_run
-          console.log("phantomjs #{test_to_run.args.join(' ')}")
+          console.log("#{est_to_run.command} #{test_to_run.args.join(' ')}")
         original_callback?(0)
 
       else
@@ -290,7 +296,7 @@ class eb.Baker
         )
 
         for test_to_run in tests_to_run
-          @runTest(test_to_run.args, options)
+          @runTest(test_to_run.command, test_to_run.args, options)
 
     # start the execution chain
     @build(_.extend(_.clone(options), {callback: run_tests_fn, clean: options.clean}))

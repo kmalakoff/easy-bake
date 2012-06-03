@@ -20,7 +20,7 @@ Just include it as a development dependency to your package.json:
 
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": ">=0.1.0"
+  "easy-bake": "0.1.1"
 },
 ```
 
@@ -82,9 +82,7 @@ Options:
 
 Testing
 -----------------------
-EasyBake is designed to use phantomjs but you will need to install it yourself since there is no npm package for it. Look here for the instructions: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs'
-
-Also, if you are using TravisCI, you should add something like this to your project.json file:
+If you are using TravisCI, you should add something like this to your project.json file:
 
 ```
 "scripts": {
@@ -115,25 +113,53 @@ some_testing_group:
     - test/some_more_tests
   options:
     test:
-      timeout: 60000
+      command: phantomjs
       runner: phantomjs-qunit-runner.js
+      timeout: 60000
+      files:
+        - **/*.html
 ```
 
-by default, easy-bake looks for .html files in each each directory like, but you can list files individually if you like:
+
+###Testing With PhantomJS
+
+You will need to install phantom yourself since there is no npm package for it. Look here for the instructions: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs'
 
 ```
 some_testing_group:
   ...
   options:
     test:
-      timeout: 60000
+      command: phantomjs
       runner: phantomjs-qunit-runner.js
+      timeout: 60000
     files:
       - **/*.html
 ```
 
-
 **Note:** currently the library only has a test-runner for phantomjs-qunit-runner.js and phantomjs-jasmine-runner.js. Feel free to add more and to submit a pull request.
+
+###Testing With NodeUnit
+
+Just include it as a development dependency to your package.json:
+
+```
+"devDependencies": {
+  "coffee-script": ">=1.3.3",
+  "easy-bake": "0.1.1",
+  "nodeunit": ">=0.7.4"
+},
+```
+
+```
+some_testing_group:
+  ...
+  options:
+    test:
+      command: nodeunit
+    files:
+      - **/*.js
+```
 
 
 Building the library

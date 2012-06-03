@@ -10,9 +10,6 @@
     "url": "http://github.com/kmalakoff/easy-bake.git"
   },
 
-  "scripts": {
-    "test": "node_modules/.bin/cake -c test"
-  },
   "dependencies": {
     "easy-bake": "0.1.0",
     "coffee-script": ">=1.3.3",
