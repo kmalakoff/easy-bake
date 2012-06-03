@@ -20,7 +20,7 @@ Just include it as a development dependency to your package.json:
 
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.1"
+  "easy-bake": "0.1.2"
 },
 ```
 
@@ -146,7 +146,7 @@ Just include it as a development dependency to your package.json:
 ```
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.1",
+  "easy-bake": "0.1.2",
   "nodeunit": ">=0.7.4"
 },
 ```

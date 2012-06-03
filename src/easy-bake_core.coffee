@@ -240,7 +240,7 @@ class eb.Baker
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
-      test_filename = eb.Utils.removeString(args[1], "file://#{@YAML_dir}/")
+      test_filename = eb.Utils.removeString((if (command is 'phantomjs') then args[1] else args[0]), "file://#{@YAML_dir}/")
       if code is 0
         @timeLog("tests passed #{test_filename}") unless options.silent
       else
@@ -258,7 +258,6 @@ class eb.Baker
       continue if _.contains(RESERVED_SETS, set_name) or not (set.options and set.options.hasOwnProperty('test'))
 
       set_options = eb.Utils.extractSetOptions(set, 'test', {
-        timeout: TEST_DEFAULT_TIMEOUT
         directories: ['.']
         command: 'phantomjs'
         files: ['**/*.html']
@@ -283,7 +282,7 @@ class eb.Baker
       if options.preview
         console.log('************test preview**************')
         for test_to_run in tests_to_run
-          console.log("#{est_to_run.command} #{test_to_run.args.join(' ')}")
+          console.log("#{test_to_run.command} #{test_to_run.args.join(' ')}")
         original_callback?(0)
 
       else

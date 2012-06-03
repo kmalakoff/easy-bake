@@ -20,5 +20,5 @@ tests:
   options:
     test:
       command: nodeunit
-    files:
-      - '**/*.js'
+      files:
+        - '**/*.js'
