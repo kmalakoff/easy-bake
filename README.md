@@ -14,6 +14,10 @@ EasyBake provides YAML-based Cakefile helpers for common CoffeeScript library pa
 Just include it as a development dependency to your package.json:
 
 ```
+"scripts": {
+  "postinstall": "node_modules/.bin/cake postinstall"
+},
+
 "devDependencies": {
   "coffee-script": ">=1.3.3",
   "easy-bake": ">=0.1.0"
@@ -47,8 +51,15 @@ some_other_group:
 Include it in your Cakefile:
 
 ```
-require('easy-bake')('easy-bake-config.yaml')
+easybake = require('easy-bake')
+new easybake.Baker('easy-bake-config.yaml', {})
 ```
+
+Options include:
+
+1. tasks - an array of tasks to include (in case you want to use only a subset)
+1. namespace - provides a namespace for the tasks like namspace.build
+
 
 And that's it! You will have access to the following cake commands and options in your projects...
 
@@ -58,7 +69,8 @@ Commands Supplied by EasyBake
 1. 'cake clean' - cleans the project of all compiled files
 2. 'cake build' - performs a single build
 3. 'cake watch' - automatically scans for and builds the project when changes are detected
-3. 'cake test' - cleans, builds, and runs tests. Note: the tests require installing phantomjs: ('brew install phantomjs' or http://phantomjs.org/)
+3. 'cake test' - cleans, builds, and runs tests. Note: the tests require installing phantomjs
+3. 'cake postinstall' - runs postintall steps like copying dependent client scripts to vendor, etc.
 
 Options:
 
@@ -70,12 +82,13 @@ Options:
 
 Testing
 -----------------------
-EasyBake is designed to use phantomjs but you will need to install it yourself since there is no npm package for it. Look here for the instructions: http://phantomjs.org/
+EasyBake is designed to use phantomjs but you will need to install it yourself since there is no npm package for it. Look here for the instructions: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs'
 
 Also, if you are using TravisCI, you should add something like this to your project.json file:
 
 ```
 "scripts": {
+  "postinstall": "node_modules/.bin/cake postinstall",
   "test": "node_modules/.bin/cake -c test"
 },
 
@@ -132,6 +145,4 @@ Building the library
 
 ###Commands:
 
-1. 'cake clean' - cleans the project of all compiled files
-2. 'cake build' - performs a single build
-3. 'cake watch' - automatically scans for and builds the project when changes are detected
+Easy-bake uses easy-bake! Just use the above commands...

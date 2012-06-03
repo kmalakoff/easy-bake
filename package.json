@@ -10,17 +10,23 @@
     "url": "http://github.com/kmalakoff/easy-bake.git"
   },
 
+  "scripts": {
+    "test": "node_modules/.bin/cake -c test"
+  },
   "dependencies": {
+    "easy-bake": "0.1.0",
     "coffee-script": ">=1.3.3",
     "yaml": ">=0.2.3",
     "js-yaml": ">=0.3.7",
     "uglify-js": ">=1.3.0",
     "wrench": ">=1.3.9",
-    "underscore" : ">=1.3.1",
-    "glob-whatev" : ">=0.1.6"
+    "underscore": ">=1.3.1",
+    "glob-whatev": ">=0.1.6"
+  },
+  "devDependencies": {
+    "nodeunit": ">=0.7.4"
   },
 
-  "lib" : "lib",
-  "main" : "easy-bake.js",
-  "version": "0.1.0"
+  "main" : "lib/easy-bake.js",
+  "version": "0.1.1"
 }

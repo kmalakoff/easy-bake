@@ -7,81 +7,60 @@ wrench = require 'wrench'
 _ = require 'underscore'
 globber = require 'glob-whatev'
 uglifyjs = require 'uglify-js'
+cake = require 'coffee-script/lib/coffee-script/cake'
 
+RESERVED_SETS = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
+PROJECT_ROOT = "#{__dirname}/.."
+RUNNERS_ROOT = "#{PROJECT_ROOT}/lib/test_runners"
 
-class Utils
-  @removeString: (string, remove_string) -> return string.replace(remove_string, '')
+# export or create eb namespace
+eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
 
-  @extractSetOptions: (set, mode, defaults) ->
-    set_options = _.clone(set)
-    if set.options
-      _.extend(set_options, set.options['global']) if set.options['global']
-      _.extend(set_options, set.options[mode]) if set.options[mode]
-      delete set_options['options']
-    _.defaults(set_options, defaults) if defaults
-    return set_options
-
-  @setOptionsFileGroups: (set_options, YAML_dir) ->
-    file_groups = []
-
-    directories = if set_options.hasOwnProperty('directories') then set_options.directories else ['.']
-    files = if set_options.hasOwnProperty('files') then set_options.files else ['**/*']
-    no_files_ok = if set_options.hasOwnProperty('no_files_ok') then set_options.no_files_ok
-
-    # build the list of files per directory if there are any matching files
-    for directory in directories
-      if not path.existsSync(directory)
-        console.log("warning: directory is missing #{directory}")
-        continue
-      directory = fs.realpathSync(directory) # resolve the real path
-
-      pathed_files = []
-      _.each(files, (rel_file) ->
-        count = pathed_files.length
-        globber.glob("#{directory}/#{rel_file}").forEach((pathed_file) -> pathed_files.push(pathed_file))
-        if count == pathed_files.length
-          rel_directory = Utils.removeString(directory, "#{YAML_dir}/")
-          console.log("warning: files not found #{directory}/#{rel_file}") if not no_files_ok or not _.contains(no_files_ok, rel_directory)
-      )
-      continue if not pathed_files.length
-      file_groups.push(directory: directory, files:pathed_files)
-
-    return file_groups
-
-  @afterWithCollect: (count, callback) ->
-    return (code) ->
-      result = code if _.isUndefined(result)
-      result != code
-      return result if --count>0
-      result |= callback(result)
-      return result
-
-class EasyBake
-  constructor: (YAML, tasks) ->
+##############################
+# The Baker
+##############################
+class eb.Baker
+  constructor: (YAML, options={}) ->
     @YAML_dir = path.dirname(fs.realpathSync(YAML))
     @YAML = yaml.load(fs.readFileSync(YAML, 'utf8'))
 
     ##############################
-    # COMMANDS
+    # CAKE TASKS
     ##############################
     option '-c', '--clean', 'clean the project'
     option '-w', '--watch', 'watch for changes'
     option '-s', '--silent', 'silence the console output'
     option '-p', '--preview', 'preview the action'
 
-    task('clean', 'Remove generated JavaScript files', (options) => @clean(options)) if not tasks or _.contains(tasks, 'clean')
-    task 'build', 'Build library and tests', (options) => @build(options)  if not tasks or _.contains(tasks, 'build')
-    task 'watch', 'Watch library and tests', (options) => @watch(options) if not tasks or _.contains(tasks, 'watch')
-    task 'test', 'Test library', (options) => @test(options) if not tasks or _.contains(tasks, 'test')
+    tasks =
+      clean:        ['Remove generated JavaScript files',   (options) => @clean(options)]
+      build:        ['Build library and tests',             (options) => @build(options)]
+      watch:        ['Watch library and tests',             (options) => @watch(options)]
+      test:         ['Test library',                        (options) => @test(options)]
+      postinstall:  ['Performs postinstall actions',        (options) => @postinstall(options)]
+
+    # register and optionally namespace the tasks
+    task_names = if options.tasks then options.tasks else _.keys(tasks)
+    for task_name in task_names
+      args = tasks[task_name]
+      (console.log("easy-bake: task name not recognized #{task_name}"); continue) unless args
+      task_name = "#{options.namespace}.#{task_name}" if options.namespace
+      task.apply(null, [task_name].concat(args))
 
   timeLog: (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
   resolveDirectory: (directory, current_root) ->
-    if (directory[0]=='.')
-      stripped_directory = if(directory[1]=='/') then directory.substr(2) else directory.substr(1)
+    if (directory.match(/^\.\//))
+      stripped_directory = directory.substr('./'.length)
+      return if directory == './' then current_root else "#{current_root}/#{stripped_directory}"
+    else if (directory == '.')
+      stripped_directory = directory.substr('.'.length)
       return "#{current_root}/#{stripped_directory}"
     else if (directory[0]=='/')
       return directory
+    else if (directory.match(/^\{root\}/))
+      stripped_directory = directory.substr('{root}'.length)
+      return if directory == '{root}' then @YAML_dir else "#{@YAML_dir}/#{stripped_directory}"
     else
       return "#{@YAML_dir}/#{directory}"
 
@@ -90,7 +69,7 @@ class EasyBake
     return "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
   minifiedName: (output_name) -> return output_name.replace(/\.js$/, ".min.js")
 
-  YAMLRelative: (pathed_filename) -> return Utils.removeString(pathed_filename, "#{@YAML_dir}/")
+  YAMLRelative: (pathed_filename) -> return eb.Utils.removeString(pathed_filename, "#{@YAML_dir}/")
 
   runClean: (array, directory, options) =>
     for item in array
@@ -99,14 +78,17 @@ class EasyBake
       @timeLog("cleaned #{item}")
       if directory then wrench.rmdirSyncRecursive(item) else fs.unlink(item) unless options.preview
 
-  clean: (options={}) ->
+  clean: (options={}, command_queue) ->
+    owns_queue = !!command_queue
+    command_queue or= new eb.CommandQueue()
     directories_to_delete = []
     files_to_delete = []
 
     # collect files and directories to clean
     for set_name, set of @YAML
-      # extract test settings
-      set_options = Utils.extractSetOptions(set, 'build', {
+      continue if _.contains(RESERVED_SETS, set_name)
+
+      set_options = eb.Utils.extractSetOptions(set, 'build', {
         directories: [@YAML_dir]
       })
       _.extend(set_options, set.options.clean) if set.options and set.options.clean
@@ -130,6 +112,9 @@ class EasyBake
     @runClean(directories_to_delete, true, options)
     @runClean(files_to_delete, false, options)
     options.callback?(0)
+
+    # run
+    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
 
   minify: (output_name, options={}, code) ->
     result = code
@@ -164,7 +149,7 @@ class EasyBake
       filenames = if ((index = _.indexOf(args, '-j')) >= 0) then [args[index+1]] else filenames = args.slice(_.indexOf(args, '-c')+1)
 
       original_callback = options.callback; options = _.clone(options); options.callback = null
-      options.callback = Utils.afterWithCollect(filenames.length, (result) =>
+      options.callback = eb.Utils.afterWithCollect(filenames.length, (result) =>
         result |= original_callback(result) if original_callback
         return result
       )
@@ -181,18 +166,22 @@ class EasyBake
     # watch vs build callbacks are slightly different
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
 
-  build: (options={}) ->
+  build: (options={}, command_queue) ->
+    owns_queue = !!command_queue
+    command_queue or= new eb.CommandQueue()
+
     coffee_commands_to_run = []
 
     # collect files to build
     for set_name, set of @YAML
-      # extract test settings
-      set_options = Utils.extractSetOptions(set, 'build', {
+      continue if _.contains(RESERVED_SETS, set_name)
+
+      set_options = eb.Utils.extractSetOptions(set, 'build', {
         directories: ['.']
         files: ['**/*.coffee']
       })
 
-      file_groups = Utils.setOptionsFileGroups(set_options, @YAML_dir)
+      file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
       for file_group in file_groups
         args = []
         args.push('-w') if options.watch
@@ -227,7 +216,7 @@ class EasyBake
         original_callback?(0)
 
       else
-        options.callback = Utils.afterWithCollect(coffee_commands_to_run.length, (result) =>
+        options.callback = eb.Utils.afterWithCollect(coffee_commands_to_run.length, (result) =>
           result |= original_callback(result) if original_callback
           return result
         )
@@ -240,6 +229,9 @@ class EasyBake
     else
       run_build_fn(0)
 
+    # run
+    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
+
   watch: (options={}) ->
     @build(_.extend(options, {watch: true}))
 
@@ -248,7 +240,7 @@ class EasyBake
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
-      test_filename = Utils.removeString(args[1], "file://#{@YAML_dir}/")
+      test_filename = eb.Utils.removeString(args[1], "file://#{@YAML_dir}/")
       if code is 0
         @timeLog("tests passed #{test_filename}") unless options.silent
       else
@@ -256,22 +248,25 @@ class EasyBake
       code != options.callback?(code)
       return code
 
-  test: (options={}) ->
+  test: (options={}, command_queue) ->
+    owns_queue = !!command_queue
+    command_queue or= new eb.CommandQueue()
     tests_to_run = []
 
     # collect tests to run
     for set_name, set of @YAML
-      continue unless set.options and set.options.test
+      continue if _.contains(RESERVED_SETS, set_name) or not (set.options and set.options.hasOwnProperty('test'))
 
-      # extract test settings
-      set_options = Utils.extractSetOptions(set, 'test', {
+      set_options = eb.Utils.extractSetOptions(set, 'test', {
         timeout: TEST_DEFAULT_TIMEOUT
         directories: ['.']
         files: ['**/*.html']
       })
-      set_options.runner = "#{__dirname}/lib/#{set_options.runner}" unless path.existsSync(set_options.runner)
 
-      file_groups = Utils.setOptionsFileGroups(set_options, @YAML_dir)
+      (console.log("Missing runner for tests: #{set_name}"); continue) unless set_options.runner
+      set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}" unless path.existsSync(set_options.runner)
+
+      file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
       for file_group in file_groups
         for file in file_group.files
           tests_to_run.push({args: [set_options.runner, "file://#{fs.realpathSync(file)}", set_options.timeout]})
@@ -287,7 +282,7 @@ class EasyBake
 
       else
         @timeLog("************tests started*************")
-        options.callback = Utils.afterWithCollect(tests_to_run.length, (result) =>
+        options.callback = eb.Utils.afterWithCollect(tests_to_run.length, (result) =>
           if result then @timeLog("************tests failed**************") else @timeLog("************tests succeeded***********")
           result |= original_callback(result) if original_callback
           process.exit(result) unless options.watch
@@ -300,4 +295,26 @@ class EasyBake
     # start the execution chain
     @build(_.extend(_.clone(options), {callback: run_tests_fn, clean: options.clean}))
 
-module.exports = (YAML, tasks) -> new EasyBake(YAML, tasks)
+    # run
+    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
+
+  postinstall: (options={}, command_queue) ->
+    owns_queue = !!command_queue
+    command_queue or= new eb.CommandQueue()
+
+    # collect tests to run
+    for set_name, set of @YAML
+      continue unless set_name is 'postinstall'
+
+      # set up vendor directory
+      if set.options.vendor
+        set_options = eb.Utils.extractSetOptions(set, 'vendor', {output: 'vendor'})
+
+        # copy vendor files
+        file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
+        for file_group in file_groups
+          for file in file_group.files
+            command_queue.push(new eb.command.CopyFile(this, file, set_options.output))
+
+    # run
+    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
