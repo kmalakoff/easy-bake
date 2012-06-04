@@ -1,16 +1,21 @@
-easy-bake:
+library:
   output: '{root}'
   join: easy-bake.js
   files:
     - src/easy-bake_core.coffee
     - src/easy-bake_utils.coffee
-    - src/easy-bake_commands.coffee
 
-lib:
+lib_commands:
+  join: easy-bake-commands.js
+  output: lib
+  files:
+    - src/commands/queue.coffee
+    - src/commands/commands.coffee
+
+lib_test_runners:
   output: lib/test_runners
   directories:
     - src/test_runners
-
 
 tests:
   output: ./build

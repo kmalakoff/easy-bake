@@ -8,11 +8,11 @@ _ = require 'underscore'
 globber = require 'glob-whatev'
 uglifyjs = require 'uglify-js'
 cake = require 'coffee-script/lib/coffee-script/cake'
+ebc = require './lib/easy-bake-commands'
 
 RESERVED_SETS = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
-PROJECT_ROOT = "#{__dirname}/.."
-RUNNERS_ROOT = "#{PROJECT_ROOT}/lib/test_runners"
+RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
 # export or create eb namespace
 eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
@@ -32,6 +32,7 @@ class eb.Baker
     option '-w', '--watch', 'watch for changes'
     option '-s', '--silent', 'silence the console output'
     option '-p', '--preview', 'preview the action'
+    option '-v', '--verbose', 'preview the action'
 
     tasks =
       clean:        ['Remove generated JavaScript files',   (options) => @clean(options)]
@@ -79,8 +80,8 @@ class eb.Baker
       if directory then wrench.rmdirSyncRecursive(item) else fs.unlink(item) unless options.preview
 
   clean: (options={}, command_queue) ->
-    owns_queue = !!command_queue
-    command_queue or= new eb.CommandQueue()
+    owns_queue = !command_queue
+    command_queue or= new ebc.Queue()
     directories_to_delete = []
     files_to_delete = []
 
@@ -114,7 +115,9 @@ class eb.Baker
     options.callback?(0)
 
     # run
-    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
+    if owns_queue
+      command_queue.push({run: (callback, options, queue) -> console.log("clean completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.run(null, options)
 
   minify: (output_name, options={}, code) ->
     result = code
@@ -167,8 +170,8 @@ class eb.Baker
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
 
   build: (options={}, command_queue) ->
-    owns_queue = !!command_queue
-    command_queue or= new eb.CommandQueue()
+    owns_queue = !command_queue
+    command_queue or= new ebc.Queue()
 
     coffee_commands_to_run = []
 
@@ -230,7 +233,9 @@ class eb.Baker
       run_build_fn(0)
 
     # run
-    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
+    if owns_queue
+      command_queue.push({run: (callback, options, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.run(null, options)
 
   watch: (options={}) ->
     @build(_.extend(options, {watch: true}))
@@ -249,9 +254,11 @@ class eb.Baker
       return code
 
   test: (options={}, command_queue) ->
-    owns_queue = !!command_queue
-    command_queue or= new eb.CommandQueue()
+    owns_queue = !command_queue
+    command_queue or= new ebc.Queue()
     tests_to_run = []
+
+    options.verbose = true
 
     # collect tests to run
     for set_name, set of @YAML
@@ -301,25 +308,28 @@ class eb.Baker
     @build(_.extend(_.clone(options), {callback: run_tests_fn, clean: options.clean}))
 
     # run
-    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
+    if owns_queue
+      command_queue.push({run: (callback, options, queue) -> console.log("test completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.run(null, options)
 
   postinstall: (options={}, command_queue) ->
-    owns_queue = !!command_queue
-    command_queue or= new eb.CommandQueue()
+    owns_queue = !command_queue
+    command_queue or= new ebc.Queue()
 
     # collect tests to run
     for set_name, set of @YAML
       continue unless set_name is 'postinstall'
 
-      # set up vendor directory
-      if set.options.vendor
-        set_options = eb.Utils.extractSetOptions(set, 'vendor', {output: 'vendor'})
+      # run commands
+      for name, command_info of set
+        unless command_info.command
+          console.log("postinstall #{set_name}.#{name} is not a command")
+          continue
 
-        # copy vendor files
-        file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
-        for file_group in file_groups
-          for file in file_group.files
-            command_queue.push(new eb.command.CopyFile(this, file, set_options.output))
+        # add the command
+        command_queue.push(new ebc.RunCommand(command_info.command, command_info.args, command_info.options))
 
     # run
-    command_queue.run(((code)->console.log("done: #{code}")), options.preview) if owns_queue
+    if owns_queue
+      command_queue.push({run: (callback, options, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.run(null, options)
