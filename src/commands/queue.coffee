@@ -5,8 +5,11 @@ _ = require 'underscore'
 wrench = require 'wrench'
 uglifyjs = require 'uglify-js'
 
+eb = {} unless !!eb; @eb = {} unless !!@eb
+eb.utils = require './easy-bake-utils'
+
 # export or create eb namespace
-ebc = @ebc = if (typeof(exports) != 'undefined') then exports else {}
+eb.commands = @eb.commands = if (typeof(exports) != 'undefined') then exports else {}
 
 # helpers
 timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
@@ -15,7 +18,7 @@ timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{messa
 # Queue
 ##############################
 
-class ebc.Queue
+class eb.commands.Queue
   constructor: ->
     @commands_queue = []
     @is_running = false

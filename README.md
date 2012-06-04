@@ -35,7 +35,7 @@ Create a YAML file to specify what needs to be built (for example easy-bake-conf
 ```
 some_group:
   join: your_library_name.js
-  minimize: true
+  compress: true
   files:
     - src/knockback_core.coffee
     - src/lib/**.*coffee

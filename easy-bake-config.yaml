@@ -1,9 +1,12 @@
 library:
   output: '{root}'
-  join: easy-bake.js
   files:
-    - src/easy-bake_core.coffee
-    - src/easy-bake_utils.coffee
+    - src/easy-bake.coffee
+
+lib_utils:
+  output: lib
+  files:
+    - src/easy-bake-utils.coffee
 
 lib_commands:
   join: easy-bake-commands.js

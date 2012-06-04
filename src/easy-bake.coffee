@@ -4,7 +4,6 @@ fs = require 'fs'
 path = require 'path'
 yaml = require 'js-yaml'
 _ = require 'underscore'
-ebc = require './lib/easy-bake-commands'
 require 'coffee-script/lib/coffee-script/cake'
 
 RESERVED_SETS = ['postinstall']
@@ -13,6 +12,8 @@ RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
 # export or create eb namespace
 eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
+eb.utils = require './lib/easy-bake-utils'
+eb.commands = require './lib/easy-bake-commands'
 
 # helpers
 timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
@@ -49,60 +50,30 @@ class eb.Baker
       task_name = "#{options.namespace}.#{task_name}" if options.namespace
       task.apply(null, [task_name].concat(args))
 
-  resolveDirectory: (directory, current_root) ->
-    if (directory.match(/^\.\//))
-      stripped_directory = directory.substr('./'.length)
-      return if directory == './' then current_root else "#{current_root}/#{stripped_directory}"
-    else if (directory == '.')
-      stripped_directory = directory.substr('.'.length)
-      return "#{current_root}/#{stripped_directory}"
-    else if (directory[0]=='/')
-      return directory
-    else if (directory.match(/^\{root\}/))
-      stripped_directory = directory.substr('{root}'.length)
-      return if directory == '{root}' then @YAML_dir else "#{@YAML_dir}/#{stripped_directory}"
-    else
-      return "#{@YAML_dir}/#{directory}"
-
-  minifiedOutputName: (output_directory, source_name) ->
-    output_directory = @resolveDirectory(output_directory, path.dirname(source_name))
-    return "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
-  minifiedName: (output_name) -> return output_name.replace(/\.js$/, ".min.js")
-
   clean: (options={}, command_queue) ->
     owns_queue = !command_queue
-    command_queue or= new ebc.Queue()
+    command_queue or= new eb.commands.Queue()
 
     # add header
     if options.verbose
       command_queue.push({run: (callback, options, queue) -> console.log("************clean #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
 
-    # collect files and directories to clean
-    for set_name, set of @YAML
-      continue if _.contains(RESERVED_SETS, set_name)
+    # get the build commands
+    build_queue = new eb.commands.Queue()
+    @build(_.defaults({clean: false}, options), build_queue)
 
-      set_options = eb.Utils.extractSetOptions(set, 'build', {
-        directories: [@YAML_dir]
-      })
-      _.extend(set_options, set.options.clean) if set.options and set.options.clean
+    for command in build_queue.commands()
+      continue unless command instanceof eb.commands.RunCoffee
 
-      for directory in set_options.directories
-        if set_options.output
-          if (set_options.output[0]=='.') or (set_options.output.match(/^\{root\}/))
-            resolved_path = then @resolveDirectory(set_options.output, directory)
-          else
-            continue unless path.existsSync(set_options.output) # doesn't exist so skip
-            resolved_path = fs.realpathSync(set_options.output)
+      output_directory = command.targetDirectory()
+      output_names = command.targetNames()
+      for source_name in output_names
+        build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name), @YAML_dir)
+        pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
 
-          # add the command
-          command_queue.push(new ebc.RunClean(['-r', resolved_path], {root_dir: @YAML_dir}))
-        else
-          resolved_path = @YAML_dir
-
-        # cleanup join commands
-        if set_options.join
-          command_queue.push(new ebc.RunClean(["#{resolved_path}/#{set_options.join}"], {root_dir: @YAML_dir}))
-          command_queue.push(new ebc.RunClean(["#{resolved_path}/#{@minifiedName(set_options.join)}"], {root_dir: @YAML_dir})) if set_options.minimize
+        # add the command
+        command_queue.push(new eb.commands.RunClean(["#{pathed_build_name}"], {root_dir: @YAML_dir}))
+        command_queue.push(new eb.commands.RunClean(["#{eb.utils.compressedName(pathed_build_name)}"], {root_dir: @YAML_dir})) if command.isCompressed()
 
     # add footer
     if options.verbose
@@ -114,7 +85,7 @@ class eb.Baker
   watch: (options={}, command_queue) -> @build(_.defaults({watch: true}, options), command_queue)
   build: (options={}, command_queue) ->
     owns_queue = !command_queue
-    command_queue or= new ebc.Queue()
+    command_queue or= new eb.commands.Queue()
 
     # add the clean commands
     @clean(options, command_queue) if options.clean
@@ -127,35 +98,25 @@ class eb.Baker
     for set_name, set of @YAML
       continue if _.contains(RESERVED_SETS, set_name)
 
-      set_options = eb.Utils.extractSetOptions(set, 'build', {
+      set_options = eb.utils.extractSetOptions(set, 'build', {
         directories: ['.']
         files: ['**/*.coffee']
       })
 
-      file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir)
       for file_group in file_groups
         args = []
         args.push('-w') if options.watch
         args.push('-b') if set_options.bare
         args.push(['-j', set_options.join]) if set_options.join
         if set_options.output
-          args.push(['-o', @resolveDirectory(set_options.output, file_group.directory)])
+          args.push(['-o', eb.utils.resolvePath(set_options.output, file_group.directory, @YAML_dir)])
         else
           args.push(['-o', @YAML_dir])
         args.push(['-c', file_group.files])
 
         # add the command
-        coffee_command = new ebc.RunCoffee(_.flatten(args), {root_dir: @YAML_dir})
-        command_queue.push(coffee_command)
-
-        # add a minimize command
-        if set_options.minimize
-          output_directory = coffee_command.targetDirectory()
-          for source_name in coffee_command.targetNames()
-            output_name = @minifiedOutputName(output_directory, source_name)
-
-            # add the command
-            command_queue.push(new ebc.RunUglifyJS(['-o', @minifiedName(output_name), output_name], {root_dir: @YAML_dir}))
+        command_queue.push(new eb.commands.RunCoffee(_.flatten(args), {root_dir: @YAML_dir, compress: set_options.compress}))
 
     # add footer
     if options.verbose
@@ -166,14 +127,14 @@ class eb.Baker
 
   test: (options={}, command_queue) ->
     owns_queue = !command_queue
-    command_queue or= new ebc.Queue()
+    command_queue or= new eb.commands.Queue()
 
     # add the build commands (will add clean if specified since 'clean' would be in the options)
     @build(options, command_queue)
 
     # create a new queue for the tests so we can get a group result
-    test_queue = new ebc.Queue()
-    command_queue.push(new ebc.RunQueue(test_queue, 'tests'))
+    test_queue = new eb.commands.Queue()
+    command_queue.push(new eb.commands.RunQueue(test_queue, 'tests'))
 
     # add header
     if options.verboe
@@ -183,7 +144,7 @@ class eb.Baker
     for set_name, set of @YAML
       continue if _.contains(RESERVED_SETS, set_name) or not (set.options and set.options.hasOwnProperty('test'))
 
-      set_options = eb.Utils.extractSetOptions(set, 'test', {
+      set_options = eb.utils.extractSetOptions(set, 'test', {
         directories: ['.']
         files: ['**/*.html']
       })
@@ -193,7 +154,7 @@ class eb.Baker
         set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}"
         easy_bake_runner_used = true
 
-      file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir)
       for file_group in file_groups
         for file in file_group.files
 
@@ -209,7 +170,7 @@ class eb.Baker
             args.push(set_options.silent) if set_options.silent
 
           # add the command
-          test_queue.push(new ebc.RunTest(set_options.command, args, {root_dir: @YAML_dir}))
+          test_queue.push(new eb.commands.RunTest(set_options.command, args, {root_dir: @YAML_dir}))
 
     # add footer
     test_queue.push({run: (callback, options, queue) ->
@@ -225,7 +186,7 @@ class eb.Baker
 
   postinstall: (options={}, command_queue) ->
     owns_queue = !command_queue
-    command_queue or= new ebc.Queue()
+    command_queue or= new eb.commands.Queue()
 
     # collect tests to run
     for set_name, set of @YAML
@@ -237,7 +198,7 @@ class eb.Baker
         (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
 
         # add the command
-        command_queue.push(new ebc.RunCommand(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
+        command_queue.push(new eb.commands.RunCommand(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
 
     # add footer
     if options.verbose
