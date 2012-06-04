@@ -1,12 +1,13 @@
 # PhantomJS QUnit Test Runner
 try
   args = phantom.args
-  if (args.length < 1 || args.length > 2)
-    console.log("Usage: " + phantom.scriptName + " <URL> <timeout>")
+  if (args.length < 1 || args.length > 3)
+    console.log("Usage: " + phantom.scriptName + " <URL> <timeout> <silent>")
     phantom.exit(1)
 
   page_filename = args[0]
   timeout = parseInt(args[1], 10) || 60000
+  silent = if args.length >= 2 then !!args[2] else false
   start = Date.now()
 
   page = require('webpage').create()
@@ -28,7 +29,9 @@ try
           return if not stats # not done
 
           clearInterval(interval)
-          if (stats.bad > 0) then phantom.exit(1) else phantom.exit()
+          code = if (stats.bad > 0) then 1 else 0
+          console.log("phantomjs-qunit-runner.js: exiting (#{code})") unless silent
+          phantom.exit(code)
       ), 500)
   )
 catch e

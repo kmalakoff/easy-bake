@@ -1,9 +1,19 @@
-##############################
-# Commands
-##############################
+{spawn} = require 'child_process'
+fs = require 'fs'
+path = require 'path'
+_ = require 'underscore'
+wrench = require 'wrench'
+uglifyjs = require 'uglify-js'
 
 # export or create eb namespace
 ebc = @ebc = if (typeof(exports) != 'undefined') then exports else {}
+
+# helpers
+timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
+
+##############################
+# Queue
+##############################
 
 class ebc.Queue
   constructor: ->

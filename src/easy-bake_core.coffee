@@ -3,12 +3,9 @@
 fs = require 'fs'
 path = require 'path'
 yaml = require 'js-yaml'
-wrench = require 'wrench'
 _ = require 'underscore'
-globber = require 'glob-whatev'
-uglifyjs = require 'uglify-js'
-cake = require 'coffee-script/lib/coffee-script/cake'
 ebc = require './lib/easy-bake-commands'
+require 'coffee-script/lib/coffee-script/cake'
 
 RESERVED_SETS = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
@@ -16,6 +13,9 @@ RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
 # export or create eb namespace
 eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
+
+# helpers
+timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
 
 ##############################
 # The Baker
@@ -32,7 +32,7 @@ class eb.Baker
     option '-w', '--watch', 'watch for changes'
     option '-s', '--silent', 'silence the console output'
     option '-p', '--preview', 'preview the action'
-    option '-v', '--verbose', 'preview the action'
+    option '-v', '--verbose', 'display additional information'
 
     tasks =
       clean:        ['Remove generated JavaScript files',   (options) => @clean(options)]
@@ -49,7 +49,6 @@ class eb.Baker
       task_name = "#{options.namespace}.#{task_name}" if options.namespace
       task.apply(null, [task_name].concat(args))
 
-  timeLog: (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
   resolveDirectory: (directory, current_root) ->
     if (directory.match(/^\.\//))
       stripped_directory = directory.substr('./'.length)
@@ -70,20 +69,13 @@ class eb.Baker
     return "#{output_directory}/#{path.basename(source_name).replace(/\.coffee$/, ".js")}"
   minifiedName: (output_name) -> return output_name.replace(/\.js$/, ".min.js")
 
-  YAMLRelative: (pathed_filename) -> return eb.Utils.removeString(pathed_filename, "#{@YAML_dir}/")
-
-  runClean: (array, directory, options) =>
-    for item in array
-      continue unless path.existsSync(item)
-
-      @timeLog("cleaned #{item}")
-      if directory then wrench.rmdirSyncRecursive(item) else fs.unlink(item) unless options.preview
-
   clean: (options={}, command_queue) ->
     owns_queue = !command_queue
     command_queue or= new ebc.Queue()
-    directories_to_delete = []
-    files_to_delete = []
+
+    # add header
+    if options.verbose
+      command_queue.push({run: (callback, options, queue) -> console.log("************clean #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
 
     # collect files and directories to clean
     for set_name, set of @YAML
@@ -96,84 +88,40 @@ class eb.Baker
 
       for directory in set_options.directories
         if set_options.output
-          if set_options.output[0]=='.'
+          if (set_options.output[0]=='.') or (set_options.output.match(/^\{root\}/))
             resolved_path = then @resolveDirectory(set_options.output, directory)
           else
             continue unless path.existsSync(set_options.output) # doesn't exist so skip
             resolved_path = fs.realpathSync(set_options.output)
-          directories_to_delete.push(resolved_path)
+
+          # add the command
+          command_queue.push(new ebc.RunClean(['-r', resolved_path], {root_dir: @YAML_dir}))
         else
           resolved_path = @YAML_dir
-        if set_options.join
-          files_to_delete.push("#{resolved_path}/#{set_options.join}")
-          files_to_delete.push("#{resolved_path}/#{@minifiedName(set_options.join)}") if set_options.minimize
 
-    # execute or preview
-    console.log('************clean preview*************') if options.preview
-    @runClean(directories_to_delete, true, options)
-    @runClean(files_to_delete, false, options)
-    options.callback?(0)
+        # cleanup join commands
+        if set_options.join
+          command_queue.push(new ebc.RunClean(["#{resolved_path}/#{set_options.join}"], {root_dir: @YAML_dir}))
+          command_queue.push(new ebc.RunClean(["#{resolved_path}/#{@minifiedName(set_options.join)}"], {root_dir: @YAML_dir})) if set_options.minimize
+
+    # add footer
+    if options.verbose
+      command_queue.push({run: (callback, options, queue) -> console.log("clean completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    if owns_queue
-      command_queue.push({run: (callback, options, queue) -> console.log("clean completed with #{queue.errorCount()} error(s)"); callback?()})
-      command_queue.run(null, options)
+    command_queue.run(null, options) if owns_queue
 
-  minify: (output_name, options={}, code) ->
-    result = code
-    args = ['-o', @minifiedName(output_name), output_name]
-
-    if options.preview
-      console.log("uglifyjs #{args.join(' ')}")
-      options.callback?(result)
-
-    else
-      try
-        src = fs.readFileSync(args[2], 'utf8')
-        header = if ((header_index = src.indexOf('*/'))>0) then src.substr(0, header_index+2) else ''
-        ast = uglifyjs.parser.parse(src)
-        ast = uglifyjs.uglify.ast_mangle(ast)
-        ast = uglifyjs.uglify.ast_squeeze(ast)
-        src = header + uglifyjs.uglify.gen_code(ast) + ';'
-        fs.writeFileSync(args[1], src, 'utf8')
-        @timeLog("minified #{@YAMLRelative(output_name)}") unless options.silent
-        options.callback?(result)
-      catch e
-        @timeLog("failed to minify #{@YAMLRelative(output_name)} .... error code: #{e.code}")
-        options.callback?(result | e.code)
-
-  runCoffee: (args, options={}) ->
-    spawned = spawn 'coffee', args
-    spawned.stderr.on 'data', (data) ->
-      process.stderr.write data.toString()
-
-    notify = (code) =>
-      output_directory = if ((index = _.indexOf(args, '-o')) >= 0) then "#{args[index+1]}" else ''
-      filenames = if ((index = _.indexOf(args, '-j')) >= 0) then [args[index+1]] else filenames = args.slice(_.indexOf(args, '-c')+1)
-
-      original_callback = options.callback; options = _.clone(options); options.callback = null
-      options.callback = eb.Utils.afterWithCollect(filenames.length, (result) =>
-        result |= original_callback(result) if original_callback
-        return result
-      )
-      for source_name in filenames
-        output_name = @minifiedOutputName(output_directory, source_name)
-        build_filename = @YAMLRelative(output_name)
-        if code is 0
-          @timeLog("built #{build_filename}") unless options.silent
-        else
-          @timeLog("failed to build #{build_filename} .... error code: code")
-        @minify(output_name, options, code) if options.minimize
-      original_callback?(code) unless options.minimize
-
-    # watch vs build callbacks are slightly different
-    if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
-
+  watch: (options={}, command_queue) -> @build(_.defaults({watch: true}, options), command_queue)
   build: (options={}, command_queue) ->
     owns_queue = !command_queue
     command_queue or= new ebc.Queue()
 
-    coffee_commands_to_run = []
+    # add the clean commands
+    @clean(options, command_queue) if options.clean
+
+    # add header
+    if options.verbose
+      command_queue.push({run: (callback, options, queue) -> console.log("************build #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
 
     # collect files to build
     for set_name, set of @YAML
@@ -195,70 +143,41 @@ class eb.Baker
         else
           args.push(['-o', @YAML_dir])
         args.push(['-c', file_group.files])
-        coffee_commands_to_run.push({args: _.flatten(args), minimize: set_options.minimize})
 
-    # execute or preview callback
-    original_callback = options.callback; options = _.clone(options); options.callback = null
-    run_build_fn = (code) =>
-      if options.preview
-        console.log('************build preview*************')
-        for coffee_command in coffee_commands_to_run
-          args = coffee_command.args
-          minimize = coffee_command
-          console.log("coffee #{args.join(' ')}")
+        # add the command
+        coffee_command = new ebc.RunCoffee(_.flatten(args), {root_dir: @YAML_dir})
+        command_queue.push(coffee_command)
 
-          if coffee_command.minimize
-            output_directory = if ((index = _.indexOf(args, '-o')) >= 0) then "#{args[index+1]}" else ''
-            filenames = if ((index = _.indexOf(args, '-j')) >= 0) then [args[index+1]] else filenames = args.slice(_.indexOf(args, '-c')+1)
-            for source_name in filenames
-              output_name = @minifiedOutputName(output_directory, source_name)
-              console.log(output_name)
-              @minify(output_name, options, code) if minimize
+        # add a minimize command
+        if set_options.minimize
+          output_directory = coffee_command.targetDirectory()
+          for source_name in coffee_command.targetNames()
+            output_name = @minifiedOutputName(output_directory, source_name)
 
-        spawned = spawn 'uglifyjs',
-        original_callback?(0)
+            # add the command
+            command_queue.push(new ebc.RunUglifyJS(['-o', @minifiedName(output_name), output_name], {root_dir: @YAML_dir}))
 
-      else
-        options.callback = eb.Utils.afterWithCollect(coffee_commands_to_run.length, (result) =>
-          result |= original_callback(result) if original_callback
-          return result
-        )
-        for coffee_command in coffee_commands_to_run
-          @runCoffee(coffee_command.args, _.extend(_.clone(options), {minimize: coffee_command.minimize}))
-
-    # start the execution chain
-    if options.clean
-      @clean(_.extend(_.clone(options), {callback: run_build_fn}))
-    else
-      run_build_fn(0)
+    # add footer
+    if options.verbose
+      command_queue.push({run: (callback, options, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    if owns_queue
-      command_queue.push({run: (callback, options, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
-      command_queue.run(null, options)
-
-  watch: (options={}) ->
-    @build(_.extend(options, {watch: true}))
-
-  runTest: (command, args, options={}) ->
-    spawned = spawn (if (command is 'phantomjs') then command else "node_modules/.bin/#{command}"), args
-    spawned.stdout.on 'data', (data) ->
-      process.stderr.write data.toString()
-    spawned.on 'exit', (code) =>
-      test_filename = eb.Utils.removeString((if (command is 'phantomjs') then args[1] else args[0]), "file://#{@YAML_dir}/")
-      if code is 0
-        @timeLog("tests passed #{test_filename}") unless options.silent
-      else
-        @timeLog("tests failed #{test_filename} .... error code: #{code}")
-      code != options.callback?(code)
-      return code
+    command_queue.run(null, options) if owns_queue
 
   test: (options={}, command_queue) ->
     owns_queue = !command_queue
     command_queue or= new ebc.Queue()
-    tests_to_run = []
 
-    options.verbose = true
+    # add the build commands (will add clean if specified since 'clean' would be in the options)
+    @build(options, command_queue)
+
+    # create a new queue for the tests so we can get a group result
+    test_queue = new ebc.Queue()
+    command_queue.push(new ebc.RunQueue(test_queue, 'tests'))
+
+    # add header
+    if options.verboe
+      test_queue.push({run: (callback, options, queue) -> console.log("************test #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
 
     # collect tests to run
     for set_name, set of @YAML
@@ -266,51 +185,43 @@ class eb.Baker
 
       set_options = eb.Utils.extractSetOptions(set, 'test', {
         directories: ['.']
-        command: 'phantomjs'
         files: ['**/*.html']
       })
 
-      # (console.log("Missing runner for tests: #{set_name}"); continue) unless set_options.runner
-      if set_options.runner
-        set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}" unless path.existsSync(set_options.runner)
+      # lookup the default runner
+      if set_options.runner and not path.existsSync(set_options.runner)
+        set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}"
+        easy_bake_runner_used = true
 
       file_groups = eb.Utils.setOptionsFileGroups(set_options, @YAML_dir)
       for file_group in file_groups
         for file in file_group.files
+
+          # resolve the arguments
           args = []
           args.push(set_options.runner) if set_options.runner
-          if (set_options.command is 'phantomjs') then args.push("file://#{fs.realpathSync(file)}") else args.push(@YAMLRelative(file))
-          args.push(set_options.timeout) if set_options.timeout
-          tests_to_run.push({command: set_options.command, args: args})
+          if (set_options.command is 'phantomjs') then args.push("file://#{fs.realpathSync(file)}") else args.push(file.replace(@YAML_dir, ''))
+          if easy_bake_runner_used
+            args.push(if set_options.timeout then set_options.timeout else TEST_DEFAULT_TIMEOUT)
+            args.push(true)
+          else
+            args.push(set_options.timeout) if set_options.timeout
+            args.push(set_options.silent) if set_options.silent
 
-    # execute or preview callback
-    original_callback = options.callback; options = _.clone(options); options.callback = null
-    run_tests_fn = =>
-      if options.preview
-        console.log('************test preview**************')
-        for test_to_run in tests_to_run
-          console.log("#{test_to_run.command} #{test_to_run.args.join(' ')}")
-        original_callback?(0)
+          # add the command
+          test_queue.push(new ebc.RunTest(set_options.command, args, {root_dir: @YAML_dir}))
 
-      else
-        @timeLog("************tests started*************")
-        options.callback = eb.Utils.afterWithCollect(tests_to_run.length, (result) =>
-          if result then @timeLog("************tests failed**************") else @timeLog("************tests succeeded***********")
-          result |= original_callback(result) if original_callback
-          process.exit(result) unless options.watch
-          return result
-        )
+    # add footer
+    test_queue.push({run: (callback, options, queue) ->
+      console.log("test completed with #{queue.errorCount()} error(s)") if options.verbose
+      callback?()
 
-        for test_to_run in tests_to_run
-          @runTest(test_to_run.command, test_to_run.args, options)
-
-    # start the execution chain
-    @build(_.extend(_.clone(options), {callback: run_tests_fn, clean: options.clean}))
+      # done so exit so test runners know the condition of the tests
+      process.exit(if (queue.errorCount() > 0) then 1 else 0) unless options.watch
+    })
 
     # run
-    if owns_queue
-      command_queue.push({run: (callback, options, queue) -> console.log("test completed with #{queue.errorCount()} error(s)"); callback?()})
-      command_queue.run(null, options)
+    command_queue.run(null, options) if owns_queue
 
   postinstall: (options={}, command_queue) ->
     owns_queue = !command_queue
@@ -322,14 +233,15 @@ class eb.Baker
 
       # run commands
       for name, command_info of set
-        unless command_info.command
-          console.log("postinstall #{set_name}.#{name} is not a command")
-          continue
+        # missing the command
+        (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
 
         # add the command
-        command_queue.push(new ebc.RunCommand(command_info.command, command_info.args, command_info.options))
+        command_queue.push(new ebc.RunCommand(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
+
+    # add footer
+    if options.verbose
+      command_queue.push({run: (callback, options, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    if owns_queue
-      command_queue.push({run: (callback, options, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
-      command_queue.run(null, options)
+    command_queue.run(null, options) if owns_queue

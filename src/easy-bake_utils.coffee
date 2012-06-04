@@ -1,9 +1,9 @@
+globber = require 'glob-whatev'
+
 ##############################
 # Utilities
 ##############################
 class eb.Utils
-  @removeString: (string, remove_string) -> return string.replace(remove_string, '')
-
   @extractSetOptions: (set, mode, defaults) ->
     set_options = _.clone(set)
     if set.options
@@ -32,18 +32,10 @@ class eb.Utils
         count = pathed_files.length
         globber.glob("#{directory}/#{rel_file}").forEach((pathed_file) -> pathed_files.push(pathed_file))
         if count == pathed_files.length
-          rel_directory = eb.Utils.removeString(directory, "#{YAML_dir}/")
+          rel_directory = directory.replace("#{YAML_dir}/", '')
           console.log("warning: files not found #{directory}/#{rel_file}") if not no_files_ok or not _.contains(no_files_ok, rel_directory)
       )
       continue if not pathed_files.length
       file_groups.push(directory: directory, files:pathed_files)
 
     return file_groups
-
-  @afterWithCollect: (count, callback) ->
-    return (code) ->
-      result = code if _.isUndefined(result)
-      result != code
-      return result if --count>0
-      result |= callback(result)
-      return result
