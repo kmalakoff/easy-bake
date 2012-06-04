@@ -115,6 +115,9 @@ class eb.Baker
     # add the clean commands
     @clean(options, command_queue) if options.clean
 
+    # add the postinstall commands
+    @postinstall(options, command_queue)
+
     # add header
     if options.verbose
       command_queue.push({run: (callback, options, queue) -> console.log("************build #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})

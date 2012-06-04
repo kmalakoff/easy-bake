@@ -189,6 +189,7 @@
       if (options.clean) {
         this.clean(options, command_queue);
       }
+      this.postinstall(options, command_queue);
       if (options.verbose) {
         command_queue.push({
           run: function(callback, options, queue) {
