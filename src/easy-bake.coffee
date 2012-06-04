@@ -22,10 +22,11 @@ timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{messa
 # The Baker
 ##############################
 class eb.Baker
-  constructor: (YAML, options={}) ->
-    @YAML_dir = path.dirname(fs.realpathSync(YAML))
-    @YAML = yaml.load(fs.readFileSync(YAML, 'utf8'))
+  constructor: (YAML_filename) ->
+    @YAML_dir = path.dirname(fs.realpathSync(YAML_filename))
+    @YAML = yaml.load(fs.readFileSync(YAML_filename, 'utf8'))
 
+  publishTasks: (options={}) ->
     ##############################
     # CAKE TASKS
     ##############################
@@ -58,6 +59,9 @@ class eb.Baker
     if options.verbose
       command_queue.push({run: (callback, options, queue) -> console.log("************clean #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
 
+    ###############################
+    # cake build
+    ###############################
     # get the build commands
     build_queue = new eb.commands.Queue()
     @build(_.defaults({clean: false}, options), build_queue)
@@ -74,6 +78,27 @@ class eb.Baker
         # add the command
         command_queue.push(new eb.commands.RunClean(["#{pathed_build_name}"], {root_dir: @YAML_dir}))
         command_queue.push(new eb.commands.RunClean(["#{eb.utils.compressedName(pathed_build_name)}"], {root_dir: @YAML_dir})) if command.isCompressed()
+
+    ###############################
+    # cake postinstall
+    ###############################
+    # get the postinstall commands
+    postinstall_queue = new eb.commands.Queue()
+    @postinstall(_.defaults({clean: false}, options), postinstall_queue)
+
+    for command in postinstall_queue.commands()
+      continue unless command instanceof eb.commands.RunCommand
+
+      # undo the copy
+      if command.command is 'cp'
+        target = "#{@YAML_dir}/#{command.args[1]}"
+
+        args = []
+        args.push('-r') unless path.basename(target)
+        args.push(target)
+
+        # add the command
+        command_queue.push(new eb.commands.RunClean(args, {root_dir: @YAML_dir}))
 
     # add footer
     if options.verbose
@@ -166,8 +191,7 @@ class eb.Baker
             args.push(if set_options.timeout then set_options.timeout else TEST_DEFAULT_TIMEOUT)
             args.push(true)
           else
-            args.push(set_options.timeout) if set_options.timeout
-            args.push(set_options.silent) if set_options.silent
+            args.concat(set_options.args) if set_options.args
 
           # add the command
           test_queue.push(new eb.commands.RunTest(set_options.command, args, {root_dir: @YAML_dir}))

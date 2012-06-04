@@ -34,14 +34,17 @@
 
   eb.Baker = (function() {
 
-    function Baker(YAML, options) {
-      var args, task_name, task_names, tasks, _i, _len,
+    function Baker(YAML_filename) {
+      this.YAML_dir = path.dirname(fs.realpathSync(YAML_filename));
+      this.YAML = yaml.load(fs.readFileSync(YAML_filename, 'utf8'));
+    }
+
+    Baker.prototype.publishTasks = function(options) {
+      var args, task_name, task_names, tasks, _i, _len, _results,
         _this = this;
       if (options == null) {
         options = {};
       }
-      this.YAML_dir = path.dirname(fs.realpathSync(YAML));
-      this.YAML = yaml.load(fs.readFileSync(YAML, 'utf8'));
       option('-c', '--clean', 'clean the project');
       option('-w', '--watch', 'watch for changes');
       option('-s', '--silent', 'silence the console output');
@@ -75,6 +78,7 @@
         ]
       };
       task_names = options.tasks ? options.tasks : _.keys(tasks);
+      _results = [];
       for (_i = 0, _len = task_names.length; _i < _len; _i++) {
         task_name = task_names[_i];
         args = tasks[task_name];
@@ -85,12 +89,13 @@
         if (options.namespace) {
           task_name = "" + options.namespace + "." + task_name;
         }
-        task.apply(null, [task_name].concat(args));
+        _results.push(task.apply(null, [task_name].concat(args)));
       }
-    }
+      return _results;
+    };
 
     Baker.prototype.clean = function(options, command_queue) {
-      var build_directory, build_queue, command, output_directory, output_names, owns_queue, pathed_build_name, source_name, _i, _j, _len, _len1, _ref;
+      var args, build_directory, build_queue, command, output_directory, output_names, owns_queue, pathed_build_name, postinstall_queue, source_name, target, _i, _j, _k, _len, _len1, _len2, _ref, _ref1;
       if (options == null) {
         options = {};
       }
@@ -128,6 +133,28 @@
               root_dir: this.YAML_dir
             }));
           }
+        }
+      }
+      postinstall_queue = new eb.commands.Queue();
+      this.postinstall(_.defaults({
+        clean: false
+      }, options), postinstall_queue);
+      _ref1 = postinstall_queue.commands();
+      for (_k = 0, _len2 = _ref1.length; _k < _len2; _k++) {
+        command = _ref1[_k];
+        if (!(command instanceof eb.commands.RunCommand)) {
+          continue;
+        }
+        if (command.command === 'cp') {
+          target = "" + this.YAML_dir + "/" + command.args[1];
+          args = [];
+          if (!path.basename(target)) {
+            args.push('-r');
+          }
+          args.push(target);
+          command_queue.push(new eb.commands.RunClean(args, {
+            root_dir: this.YAML_dir
+          }));
         }
       }
       if (options.verbose) {
@@ -269,11 +296,8 @@
               args.push(set_options.timeout ? set_options.timeout : TEST_DEFAULT_TIMEOUT);
               args.push(true);
             } else {
-              if (set_options.timeout) {
-                args.push(set_options.timeout);
-              }
-              if (set_options.silent) {
-                args.push(set_options.silent);
+              if (set_options.args) {
+                args.concat(set_options.args);
               }
             }
             test_queue.push(new eb.commands.RunTest(set_options.command, args, {

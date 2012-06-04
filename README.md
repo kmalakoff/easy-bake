@@ -52,14 +52,13 @@ Include it in your Cakefile:
 
 ```
 easybake = require('easy-bake')
-new easybake.Baker('easy-bake-config.yaml', {})
+(new easybake.Baker('easy-bake-config.yaml')).publishTasks({})
 ```
 
 Options include:
 
 1. tasks - an array of tasks to include (in case you want to use only a subset)
-1. namespace - provides a namespace for the tasks like namspace.build
-
+2. namespace - provides a namespace for the tasks like namspace.build
 
 And that's it! You will have access to the following cake commands and options in your projects...
 
