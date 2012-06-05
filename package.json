@@ -15,7 +15,6 @@
     "test": "node_modules/.bin/cake -c test"
   },
   "dependencies": {
-    "easy-bake": "0.1.1",
     "coffee-script": "latest",
     "yaml": ">=0.2.3",
     "js-yaml": ">=0.3.7",

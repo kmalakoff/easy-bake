@@ -4,6 +4,7 @@
 class eb.command.RunQueue
   constructor: (@run_queue, @name) ->
   queue: -> return @run_queue
+
   run: (callback, options={}) ->
     # display
     console.log("running queue: #{@name}") if options.verbose
@@ -13,12 +14,12 @@ class eb.command.RunQueue
 
 class eb.command.RunCommand
   constructor: (@command, @args=[], @command_options={}) ->
+
   run: (callback, options={}) ->
     # display
     if options.preview or options.verbose
-      message = "#{@command} #{@args.join(' ')}"
-      message = "#{if @command_options.root_dir then @command_options.cwd.replace("#{@command_options.root_dir}/", '') else @command_options.cwd}: #{message}" if @command_options.cwd
-      console.log(message)
+      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
+      console.log("#{if @command_options.cwd then (@command_options.cwd + ': ') else ''}#{@command} #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
@@ -33,14 +34,14 @@ class eb.command.RunCommand
 class eb.command.RunClean
   constructor: (@args=[], @command_options={}) ->
   target: -> @args[@args.length-1]
+
   run: (callback, options={}) ->
     (callback?(0, @); return) unless path.existsSync(@target()) # nothing to delete
 
     # display
     if options.preview or options.verbose
-      unscoped_args = _.map(@args, (arg) => return arg.replace(@command_options.root_dir, ''))
-      unscoped_args = _.map(unscoped_args, (arg) => return if not arg.length then '.' else (if arg[0]=='/' then arg.substr(1) else arg))
-      console.log("rm #{unscoped_args.join(' ')}")
+      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
+      console.log("rm #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
     if @args[0]=='-r' then wrench.rmdirSyncRecursive(@args[1]) else fs.unlink(@args[0])
@@ -49,17 +50,15 @@ class eb.command.RunClean
 class eb.command.RunCoffee
   constructor: (@args=[], @command_options={}) ->
   targetDirectory: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
-  targetNames: ->
-    return if ((index = _.indexOf(@args, '-j')) >= 0) then [@args[index+1]] else @args.slice(_.indexOf(@args, '-c')+1)
+  targetNames: -> return if ((index = _.indexOf(@args, '-j')) >= 0) then [@args[index+1]] else @args.slice(_.indexOf(@args, '-c')+1)
   isCompressed: -> return @command_options.compress
   runsTests: -> return @command_options.test
 
   run: (callback, options={}) ->
     # display
     if options.preview or options.verbose
-      unscoped_args = _.map(@args, (arg) => return arg.replace(@command_options.root_dir, ''))
-      unscoped_args = _.map(unscoped_args, (arg) => return if not arg.length then '.' else (if arg[0]=='/' then arg.substr(1) else arg))
-      console.log("coffee #{unscoped_args.join(' ')}")
+      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
+      console.log("coffee #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
@@ -74,7 +73,7 @@ class eb.command.RunCoffee
         post_build_queue = new eb.command.Queue()
 
       for source_name in output_names
-        build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name), @command_options.root_dir)
+        build_directory = eb.utils.resolvePath(output_directory, {cwd: path.dirname(source_name), root_dir: @command_options.root_dir})
         pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
 
         if code is 0
@@ -103,14 +102,14 @@ class eb.command.RunCoffee
 class eb.command.RunUglifyJS
   constructor: (@args=[], @command_options={}) ->
   outputName: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
+
   run: (callback, options={}) ->
     scoped_command = "node_modules/.bin/uglifyjs"
 
     # display
     if options.preview or options.verbose
-      unscoped_args = _.map(@args, (arg) => return arg.replace(@command_options.root_dir, ''))
-      unscoped_args = _.map(unscoped_args, (arg) => return if not arg.length then '.' else (if arg[0]=='/' then arg.substr(1) else arg))
-      console.log("#{scoped_command} #{unscoped_args.join(' ')}")
+      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
+      console.log("#{scoped_command} #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
@@ -130,26 +129,40 @@ class eb.command.RunUglifyJS
 
 class eb.command.RunTest
   constructor: (@command, @args=[], @command_options={}) ->
+  usingPhantomJS: -> return (@command is 'phantomjs')
+  fileName: -> return eb.utils.relativePath((if @usingPhantomJS() then @args[1] else @args[0]), @command_options.root_dir)
+  exitCode: -> return @exit_code
+
   run: (callback, options={}) ->
-    scoped_command = if (@command is 'phantomjs') then @command else "node_modules/.bin/#{command}"
+    if @usingPhantomJS()
+      scoped_command = @command
+      scoped_args = _.clone(@args)
+      scoped_args[1] = "file://#{@args[1]}"
+    else
+      scoped_command = "node_modules/.bin/#{@command}"
+      scoped_args = @args
 
     # display
     if options.preview or options.verbose
-      unscoped_args = if (@args.length == 4) then @args.slice(0, @args.length-1) else @args   # drop the silent argument
-      console.log("#{scoped_command} #{unscoped_args.join(' ')}")
+      display_args = if (scoped_args.length == 4) then scoped_args.slice(0, scoped_args.length-1) else scoped_args   # drop the silent argument
+      display_args = _.map(display_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir)) unless @usingPhantomJS()
+      console.log("#{scoped_command} #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
+    # make files relative
+    scoped_args = _.map(scoped_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir)) unless @usingPhantomJS()
+    console.log(scoped_args.join(' '))
+
     # execute
-    spawned = spawn scoped_command, @args
+    spawned = spawn scoped_command, scoped_args
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
-      test_filename = (if (@command is 'phantomjs') then @args[1] else @args[0])
-      test_filename = test_filename.replace("file://#{@command_options.root_dir}/", '')
+      @exit_code = code
       if code is 0
-        timeLog("tests passed #{test_filename}") unless options.silent
+        timeLog("tests passed #{@fileName()}") unless options.silent
       else
-        timeLog("tests failed #{test_filename} .... error code: #{code}")
+        timeLog("tests failed #{@fileName()} (exit code: #{code})")
       callback?(code, @)

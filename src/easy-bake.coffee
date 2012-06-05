@@ -73,7 +73,7 @@ class eb.Oven
       output_directory = command.targetDirectory()
       output_names = command.targetNames()
       for source_name in output_names
-        build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name), @YAML_dir)
+        build_directory = eb.utils.resolvePath(output_directory, {cwd: path.dirname(source_name), root_dir: @YAML_dir})
         pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
 
         # add the command
@@ -130,7 +130,7 @@ class eb.Oven
         files: ['**/*.coffee']
       })
 
-      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir)
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir, options)
       for file_group in file_groups
         args = []
         args.push('-w') if options.watch
@@ -140,7 +140,7 @@ class eb.Oven
           args.push(set_options.join)
         args.push('-o')
         if set_options.output
-          args.push(eb.utils.resolvePath(set_options.output, file_group.directory, @YAML_dir))
+          args.push(eb.utils.resolvePath(set_options.output, {cwd: file_group.directory, root_dir: @YAML_dir}))
         else
           args.push(@YAML_dir)
         args.push('-c')
@@ -185,12 +185,12 @@ class eb.Oven
         set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}"
         easy_bake_runner_used = true
 
-      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir)
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir, options)
       for file_group in file_groups
         for file in file_group.files
           args = []
           args.push(set_options.runner) if set_options.runner
-          if (set_options.command is 'phantomjs') then args.push("file://#{fs.realpathSync(file)}") else args.push(fs.realpathSync(file))
+          args.push(eb.utils.resolvePath(file, {cwd: file_group.directory, root_dir: @YAML_dir}))
           args = args.concat(set_options.args) if set_options.args
           if easy_bake_runner_used
             length_base = if set_options.runner then 2 else 1
@@ -201,13 +201,22 @@ class eb.Oven
           test_queue.push(new eb.command.RunTest(set_options.command, args, {root_dir: @YAML_dir}))
 
     # add footer
-    test_queue.push({run: (callback, options, queue) ->
-      console.log("test completed with #{queue.errorCount()} error(s)") if options.verbose
-      callback?()
+    unless options.preview
+      test_queue.push({run: (callback, options, queue) ->
+        total_error_count = 0
+        console.log("\n************GROUP TEST RESULTS********")
+        for command in test_queue.commands()
+          continue unless (command instanceof eb.command.RunTest)
+          total_error_count += if command.exitCode() then 1 else 0
+          console.log("#{if command.exitCode() then '✖' else '✔'} #{command.fileName()}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
+        console.log("**************************************")
+        console.log(if total_error_count then "All tests ran with with #{total_error_count} error(s)" else "All tests ran successfully!")
+        console.log("**************************************")
 
-      # done so exit so test runners know the condition of the tests
-      process.exit(if (queue.errorCount() > 0) then 1 else 0) unless options.watch
-    })
+        # done so exit so test runners know the condition of the tests
+        process.exit(if (queue.errorCount() > 0) then 1 else 0) unless options.watch
+        callback?(0)
+      })
 
     # run
     command_queue.run(null, options) if owns_queue

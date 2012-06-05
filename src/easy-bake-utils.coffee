@@ -20,7 +20,7 @@ eb.utils.extractSetOptions = (set, mode, defaults) ->
   _.defaults(set_options, defaults) if defaults
   return set_options
 
-eb.utils.getOptionsFileGroups = (set_options, root_dir) ->
+eb.utils.getOptionsFileGroups = (set_options, root_dir, options) ->
   file_groups = []
 
   directories = if set_options.hasOwnProperty('directories') then set_options.directories else ['.']
@@ -29,8 +29,10 @@ eb.utils.getOptionsFileGroups = (set_options, root_dir) ->
 
   # build the list of files per directory if there are any matching files
   for directory in directories
-    (console.log("warning: directory is missing #{directory}"); continue) if not path.existsSync(directory)
-      
+    unless path.existsSync(directory)
+      console.log("warning: directory is missing #{directory}") # unless options.preview
+      continue
+
     directory = fs.realpathSync(directory) # resolve the real path
 
     pathed_files = []
@@ -39,27 +41,32 @@ eb.utils.getOptionsFileGroups = (set_options, root_dir) ->
       globber.glob("#{directory}/#{rel_file}").forEach((pathed_file) -> pathed_files.push(pathed_file))
       if count == pathed_files.length
         rel_directory = directory.replace("#{root_dir}/", '')
-        console.log("warning: files not found #{directory}/#{rel_file}") if not no_files_ok or not _.contains(no_files_ok, rel_directory)
+        if not no_files_ok or not _.contains(no_files_ok, rel_directory)
+          console.log("warning: file not found #{directory}/#{rel_file}. If you are previewing a test, build your project before previewing.") # unless options.preview
     )
     continue if not pathed_files.length
     file_groups.push(directory: directory, files:pathed_files)
 
   return file_groups
 
-eb.utils.resolvePath = (directory, current_root, root_dir) ->
-  if (directory.match(/^\.\//))
-    stripped_directory = directory.substr(2)
-    return if directory == './' then current_root else "#{current_root}/#{stripped_directory}"
-  else if (directory == '.')
-    stripped_directory = directory.substr(1)
-    return "#{current_root}/#{stripped_directory}"
-  else if (directory[0]=='/')
-    return directory
-  else if (directory.match(/^\{root\}/))
-    stripped_directory = directory.substr(6)
-    return if directory == '{root}' then root_dir else "#{root_dir}/#{stripped_directory}"
-  else
-    return "#{root_dir}/#{directory}"
+eb.utils.relativePath = (target, root_dir) ->
+  relative_target = target.replace(root_dir, '')
+  return if not relative_target.length then '.' else (if relative_target[0]=='/' then relative_target.substr(1) else relative_target)
 
-eb.utils.builtName = (output_name) -> return output_name.replace(/\.coffee$/, ".js")
-eb.utils.compressedName = (output_name) -> return output_name.replace(/\.js$/, ".min.js")
+eb.utils.resolvePath = (target, options) ->
+  if (target.match(/^\.\//))
+    stripped_target = target.substr(2)
+    return if target == './' then options.cwd else "#{options.cwd}/#{stripped_target}"
+  else if (target == '.')
+    stripped_target = target.substr(1)
+    return "#{options.cwd}/#{stripped_target}"
+  else if (target[0]=='/')
+    return target
+  else if (target.match(/^\{root\}/))
+    stripped_target = target.substr(6)
+    return if target == '{root}' then options.root_dir else "#{options.root_dir}/#{stripped_target}"
+  else
+    return "#{options.root_dir}/#{target.replace(options.root_dir, '')}"
+
+eb.utils.builtName = (output_name) -> return output_name.replace(/\.coffee$/, '.js')
+eb.utils.compressedName = (output_name) -> return output_name.replace(/\.js$/, '.min.js')
