@@ -13,7 +13,7 @@ exports.easy_bake_core = {
     return test.done();
   },
   'Loading a YAML': function(test) {
-    baker = new eb.Baker("" + __dirname + "/../../sample_library/easy-bake-config-test.yaml");
+    baker = new eb.Oven("" + __dirname + "/../../sample_library/easy-bake-config-test.yaml");
     return test.done();
   },
   'Build': function(test) {

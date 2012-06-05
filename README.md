@@ -52,7 +52,7 @@ Include it in your Cakefile:
 
 ```
 easybake = require('easy-bake')
-(new easybake.Baker('easy-bake-config.yaml')).publishTasks({})
+(new easybake.Oven('easy-bake-config.yaml')).publishTasks({})
 ```
 
 Options include:
@@ -114,7 +114,7 @@ some_testing_group:
     test:
       command: phantomjs
       runner: phantomjs-qunit-runner.js
-      timeout: 60000
+      args: [60000]
       files:
         - **/*.html
 ```
@@ -131,7 +131,7 @@ some_testing_group:
     test:
       command: phantomjs
       runner: phantomjs-qunit-runner.js
-      timeout: 60000
+      args: [60000]
     files:
       - **/*.html
 ```

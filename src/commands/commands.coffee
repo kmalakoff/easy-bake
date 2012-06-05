@@ -1,7 +1,7 @@
 ##############################
 # Commands
 ##############################
-class eb.commands.RunQueue
+class eb.command.RunQueue
   constructor: (@run_queue, @name) ->
   queue: -> return @run_queue
   run: (callback, options={}) ->
@@ -11,7 +11,7 @@ class eb.commands.RunQueue
     # execute
     @run_queue.run(callback, options)
 
-class eb.commands.RunCommand
+class eb.command.RunCommand
   constructor: (@command, @args=[], @command_options={}) ->
   run: (callback, options={}) ->
     # display
@@ -30,7 +30,7 @@ class eb.commands.RunCommand
     spawned.on 'exit', (code) ->
       callback?(code, @)
 
-class eb.commands.RunClean
+class eb.command.RunClean
   constructor: (@args=[], @command_options={}) ->
   target: -> @args[@args.length-1]
   run: (callback, options={}) ->
@@ -46,7 +46,7 @@ class eb.commands.RunClean
     if @args[0]=='-r' then wrench.rmdirSyncRecursive(@args[1]) else fs.unlink(@args[0])
     callback?(0, @)
 
-class eb.commands.RunCoffee
+class eb.command.RunCoffee
   constructor: (@args=[], @command_options={}) ->
   targetDirectory: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
   targetNames: ->
@@ -70,7 +70,7 @@ class eb.commands.RunCoffee
       output_names = @targetNames()
 
       if @isCompressed()
-        compress_queue = new eb.commands.Queue()
+        compress_queue = new eb.command.Queue()
 
       for source_name in output_names
         build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name), @command_options.root_dir)
@@ -83,7 +83,7 @@ class eb.commands.RunCoffee
 
         # add to the compress queue
         if compress_queue
-          compress_queue.push(new eb.commands.RunUglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
+          compress_queue.push(new eb.command.RunUglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
 
       # run the compress queue
       if compress_queue
@@ -94,7 +94,7 @@ class eb.commands.RunCoffee
     # watch vs build callbacks are slightly different
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
 
-class eb.commands.RunUglifyJS
+class eb.command.RunUglifyJS
   constructor: (@args=[], @command_options={}) ->
   outputName: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
   run: (callback, options={}) ->
@@ -122,7 +122,7 @@ class eb.commands.RunUglifyJS
       timeLog("failed to minify #{@outputName().replace("#{@command_options.root_dir}/", '')} .... error code: #{e.code}")
       callback?(e.code, @)
 
-class eb.commands.RunTest
+class eb.command.RunTest
   constructor: (@command, @args=[], @command_options={}) ->
   run: (callback, options={}) ->
     scoped_command = if (@command is 'phantomjs') then @command else "node_modules/.bin/#{command}"

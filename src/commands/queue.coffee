@@ -9,7 +9,7 @@ eb = {} unless !!eb; @eb = {} unless !!@eb
 eb.utils = require './easy-bake-utils'
 
 # export or create eb namespace
-eb.commands = @eb.commands = if (typeof(exports) != 'undefined') then exports else {}
+eb.command = @eb.command = if (typeof(exports) != 'undefined') then exports else {}
 
 # helpers
 timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
@@ -18,7 +18,7 @@ timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{messa
 # Queue
 ##############################
 
-class eb.commands.Queue
+class eb.command.Queue
   constructor: ->
     @commands_queue = []
     @is_running = false

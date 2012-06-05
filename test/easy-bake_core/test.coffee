@@ -10,7 +10,7 @@ exports.easy_bake_core =
     test.done()
 
   'Loading a YAML': (test) ->
-    baker = new eb.Baker("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")
+    baker = new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")
     test.done()
 
   'Build': (test) ->
