@@ -167,6 +167,7 @@ class eb.command.GitPush
   run: (options={}, callback) ->
     git_queue = new eb.command.Queue()
     git_queue.push(new eb.command.Command('git', ['add', '.'], {root_dir: @YAML_dir}))
+    git_queue.push(new eb.command.Command('git', ['rm', '$(git ls-files --deleted)'], {root_dir: @YAML_dir}))
     git_queue.push(new eb.command.Command('git', ['commit'], {root_dir: @YAML_dir}))
     git_queue.push(new eb.command.Command('git', ['push'], {root_dir: @YAML_dir}))
     git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))

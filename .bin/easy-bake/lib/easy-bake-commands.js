@@ -462,6 +462,9 @@
       git_queue.push(new eb.command.Command('git', ['add', '.'], {
         root_dir: this.YAML_dir
       }));
+      git_queue.push(new eb.command.Command('git', ['rm', '$(git ls-files --deleted)'], {
+        root_dir: this.YAML_dir
+      }));
       git_queue.push(new eb.command.Command('git', ['commit'], {
         root_dir: this.YAML_dir
       }));
