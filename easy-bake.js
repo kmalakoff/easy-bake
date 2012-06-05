@@ -14,7 +14,9 @@
 
   _ = require('underscore');
 
-  require('coffee-script/lib/coffee-script/cake');
+  if (!global.option) {
+    require('coffee-script/lib/coffee-script/cake');
+  }
 
   RESERVED_SETS = ['postinstall'];
 
@@ -40,12 +42,12 @@
     }
 
     Oven.prototype.publishOptions = function() {
-      option('-c', '--clean', 'clean the project');
-      option('-w', '--watch', 'watch for changes');
-      option('-s', '--silent', 'silence the console output');
-      option('-p', '--preview', 'preview the action');
-      option('-v', '--verbose', 'display additional information');
-      option('-b', '--build', 'builds the project (used with test)');
+      global.option('-c', '--clean', 'cleans the project before running a command');
+      global.option('-w', '--watch', 'watches for changes');
+      global.option('-b', '--build', 'builds the project (used with test)');
+      global.option('-p', '--preview', 'display all of the commands that will be run (without running them!)');
+      global.option('-v', '--verbose', 'display additional information');
+      global.option('-s', '--silent', 'does not output messages to the console (unless errors occur)');
       return this;
     };
 
@@ -96,7 +98,7 @@
         if (options.namespace) {
           task_name = "" + options.namespace + "." + task_name;
         }
-        task.apply(null, [task_name].concat(args));
+        global.task.apply(null, [task_name].concat(args));
       }
       return this;
     };

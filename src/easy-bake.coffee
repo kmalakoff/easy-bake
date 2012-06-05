@@ -4,7 +4,7 @@ fs = require 'fs'
 path = require 'path'
 yaml = require 'js-yaml'
 _ = require 'underscore'
-require 'coffee-script/lib/coffee-script/cake'
+require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
 
 RESERVED_SETS = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
@@ -27,12 +27,12 @@ class eb.Oven
     @YAML = yaml.load(fs.readFileSync(YAML_filename, 'utf8'))
 
   publishOptions: ->
-    option('-c', '--clean',     'clean the project')
-    option('-w', '--watch',     'watch for changes')
-    option('-s', '--silent',    'silence the console output')
-    option('-p', '--preview',   'preview the action')
-    option('-v', '--verbose',   'display additional information')
-    option('-b', '--build',     'builds the project (used with test)')
+    global.option('-c', '--clean',     'cleans the project before running a command')
+    global.option('-w', '--watch',     'watches for changes')
+    global.option('-b', '--build',     'builds the project (used with test)')
+    global.option('-p', '--preview',   'display all of the commands that will be run (without running them!)')
+    global.option('-v', '--verbose',   'display additional information')
+    global.option('-s', '--silent',    'does not output messages to the console (unless errors occur)')
     @
 
   publishTasks: (options={}) ->
@@ -51,7 +51,7 @@ class eb.Oven
       args = tasks[task_name]
       (console.log("easy-bake: task name not recognized #{task_name}"); continue) unless args
       task_name = "#{options.namespace}.#{task_name}" if options.namespace
-      task.apply(null, [task_name].concat(args))
+      global.task.apply(null, [task_name].concat(args))
     @
 
   clean: (options={}, command_queue) ->
