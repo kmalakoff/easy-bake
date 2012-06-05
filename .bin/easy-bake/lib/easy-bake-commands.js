@@ -50,7 +50,7 @@
       return this.commands_queue.push(command);
     };
 
-    Queue.prototype.run = function(callback, run_options) {
+    Queue.prototype.run = function(run_options, callback) {
       var current_index, done, next,
         _this = this;
       if (this.is_running) {
@@ -61,7 +61,7 @@
       current_index = 0;
       done = function() {
         _this.is_running = false;
-        return typeof callback === "function" ? callback(_this.errors.length, _this) : void 0;
+        return typeof callback === "function" ? callback(_this) : void 0;
       };
       next = function(code, task) {
         if ((code !== 0) && (arguments.length !== 0)) {
@@ -71,13 +71,13 @@
           });
         }
         if (++current_index < _this.commands_queue.length) {
-          return _this.commands_queue[current_index].run(next, run_options, _this);
+          return _this.commands_queue[current_index].run(run_options, next, _this);
         } else {
           return done();
         }
       };
       if (this.commands_queue.length) {
-        return this.commands_queue[current_index].run(next, run_options, this);
+        return this.commands_queue[current_index].run(run_options, next, this);
       } else {
         return done();
       }
@@ -98,29 +98,31 @@
       return this.run_queue;
     };
 
-    RunQueue.prototype.run = function(callback, options) {
+    RunQueue.prototype.run = function(options, callback) {
       if (options == null) {
         options = {};
       }
       if (options.verbose) {
         console.log("running queue: " + this.name);
       }
-      return this.run_queue.run(callback, options);
+      return this.run_queue.run(options, function(queue) {
+        return typeof callback === "function" ? callback(queue.errorCount(), this) : void 0;
+      });
     };
 
     return RunQueue;
 
   })();
 
-  eb.command.RunCommand = (function() {
+  eb.command.Command = (function() {
 
-    function RunCommand(command, args, command_options) {
+    function Command(command, args, command_options) {
       this.command = command;
       this.args = args != null ? args : [];
       this.command_options = command_options != null ? command_options : {};
     }
 
-    RunCommand.prototype.run = function(callback, options) {
+    Command.prototype.run = function(options, callback) {
       var display_args, spawned,
         _this = this;
       if (options == null) {
@@ -150,22 +152,22 @@
       });
     };
 
-    return RunCommand;
+    return Command;
 
   })();
 
-  eb.command.RunClean = (function() {
+  eb.command.Clean = (function() {
 
-    function RunClean(args, command_options) {
+    function Clean(args, command_options) {
       this.args = args != null ? args : [];
       this.command_options = command_options != null ? command_options : {};
     }
 
-    RunClean.prototype.target = function() {
+    Clean.prototype.target = function() {
       return this.args[this.args.length - 1];
     };
 
-    RunClean.prototype.run = function(callback, options) {
+    Clean.prototype.run = function(options, callback) {
       var display_args,
         _this = this;
       if (options == null) {
@@ -197,18 +199,18 @@
       return typeof callback === "function" ? callback(0, this) : void 0;
     };
 
-    return RunClean;
+    return Clean;
 
   })();
 
-  eb.command.RunCoffee = (function() {
+  eb.command.Coffee = (function() {
 
-    function RunCoffee(args, command_options) {
+    function Coffee(args, command_options) {
       this.args = args != null ? args : [];
       this.command_options = command_options != null ? command_options : {};
     }
 
-    RunCoffee.prototype.targetDirectory = function() {
+    Coffee.prototype.targetDirectory = function() {
       var index;
       if ((index = _.indexOf(this.args, '-o')) >= 0) {
         return "" + this.args[index + 1];
@@ -217,7 +219,7 @@
       }
     };
 
-    RunCoffee.prototype.targetNames = function() {
+    Coffee.prototype.targetNames = function() {
       var index;
       if ((index = _.indexOf(this.args, '-j')) >= 0) {
         return [this.args[index + 1]];
@@ -226,15 +228,15 @@
       }
     };
 
-    RunCoffee.prototype.isCompressed = function() {
+    Coffee.prototype.isCompressed = function() {
       return this.command_options.compress;
     };
 
-    RunCoffee.prototype.runsTests = function() {
+    Coffee.prototype.runsTests = function() {
       return this.command_options.test;
     };
 
-    RunCoffee.prototype.run = function(callback, options) {
+    Coffee.prototype.run = function(options, callback) {
       var display_args, notify, spawned,
         _this = this;
       if (options == null) {
@@ -278,21 +280,21 @@
             timeLog("failed to compile " + (pathed_build_name.replace("" + _this.command_options.root_dir + "/", '')) + " .... error code: " + code);
           }
           if (_this.isCompressed()) {
-            post_build_queue.push(new eb.command.RunUglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {
+            post_build_queue.push(new eb.command.UglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {
               root_dir: _this.command_options.root_dir
             }));
           }
         }
         if (_this.runsTests() && _this.already_run) {
-          post_build_queue.push(new eb.command.RunCommand('cake', ['test'], {
+          post_build_queue.push(new eb.command.Command('cake', ['test'], {
             root_dir: _this.command_options.root_dir
           }));
         }
         _this.already_run = true;
         if (post_build_queue) {
-          return post_build_queue.run((function() {
+          return post_build_queue.run(options, function() {
             return typeof callback === "function" ? callback(code, _this) : void 0;
-          }), options);
+          });
         } else {
           return typeof callback === "function" ? callback(0, _this) : void 0;
         }
@@ -308,18 +310,18 @@
       }
     };
 
-    return RunCoffee;
+    return Coffee;
 
   })();
 
-  eb.command.RunUglifyJS = (function() {
+  eb.command.UglifyJS = (function() {
 
-    function RunUglifyJS(args, command_options) {
+    function UglifyJS(args, command_options) {
       this.args = args != null ? args : [];
       this.command_options = command_options != null ? command_options : {};
     }
 
-    RunUglifyJS.prototype.outputName = function() {
+    UglifyJS.prototype.outputName = function() {
       var index;
       if ((index = _.indexOf(this.args, '-o')) >= 0) {
         return "" + this.args[index + 1];
@@ -328,7 +330,7 @@
       }
     };
 
-    RunUglifyJS.prototype.run = function(callback, options) {
+    UglifyJS.prototype.run = function(options, callback) {
       var ast, display_args, header, header_index, scoped_command, src,
         _this = this;
       if (options == null) {
@@ -365,31 +367,31 @@
       }
     };
 
-    return RunUglifyJS;
+    return UglifyJS;
 
   })();
 
-  eb.command.RunTest = (function() {
+  eb.command.Test = (function() {
 
-    function RunTest(command, args, command_options) {
+    function Test(command, args, command_options) {
       this.command = command;
       this.args = args != null ? args : [];
       this.command_options = command_options != null ? command_options : {};
     }
 
-    RunTest.prototype.usingPhantomJS = function() {
+    Test.prototype.usingPhantomJS = function() {
       return this.command === 'phantomjs';
     };
 
-    RunTest.prototype.fileName = function() {
+    Test.prototype.fileName = function() {
       return eb.utils.relativePath((this.usingPhantomJS() ? this.args[1] : this.args[0]), this.command_options.root_dir);
     };
 
-    RunTest.prototype.exitCode = function() {
+    Test.prototype.exitCode = function() {
       return this.exit_code;
     };
 
-    RunTest.prototype.run = function(callback, options) {
+    Test.prototype.run = function(options, callback) {
       var display_args, scoped_args, scoped_command, spawned,
         _this = this;
       if (options == null) {
@@ -443,7 +445,35 @@
       });
     };
 
-    return RunTest;
+    return Test;
+
+  })();
+
+  eb.command.GitPush = (function() {
+
+    function GitPush() {}
+
+    GitPush.prototype.run = function(options, callback) {
+      var git_queue;
+      if (options == null) {
+        options = {};
+      }
+      git_queue = new eb.command.Queue();
+      git_queue.push(new eb.command.Command('git', ['add', '.'], {
+        root_dir: this.YAML_dir
+      }));
+      git_queue.push(new eb.command.Command('git', ['commit'], {
+        root_dir: this.YAML_dir
+      }));
+      git_queue.push(new eb.command.Command('git', ['push'], {
+        root_dir: this.YAML_dir
+      }));
+      return git_queue.run(options, function(queue) {
+        return typeof callback === "function" ? callback(queue.errorCount(), this) : void 0;
+      });
+    };
+
+    return GitPush;
 
   })();
 

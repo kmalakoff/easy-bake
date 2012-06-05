@@ -44,6 +44,7 @@ class eb.Oven
       watch:        ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
       test:         ['Test library',                            (options) => @test(options)]
       postinstall:  ['Called by npm after installing library',  (options) => @postinstall(options)]
+      gitpush:      ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @gitPush(options)]
 
     # register and optionally namespace the tasks
     task_names = if options.tasks then options.tasks else _.keys(tasks)
@@ -55,12 +56,11 @@ class eb.Oven
     @
 
   clean: (options={}, command_queue) ->
-    owns_queue = !command_queue
-    command_queue or= new eb.command.Queue()
+    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
 
     # add header
     if options.verbose
-      command_queue.push({run: (callback, options, queue) -> console.log("************clean #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
+      command_queue.push({run: (run_options, callback, queue) -> console.log("------------clean #{if options.preview then 'started (PREVIEW)' else 'started'}------------"); callback?()})
 
     ###############################
     # cake build
@@ -70,7 +70,7 @@ class eb.Oven
     @build(_.defaults({clean: false}, options), build_queue)
 
     for command in build_queue.commands()
-      continue unless command instanceof eb.command.RunCoffee
+      continue unless command instanceof eb.command.Coffee
 
       output_directory = command.targetDirectory()
       output_names = command.targetNames()
@@ -79,8 +79,8 @@ class eb.Oven
         pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
 
         # add the command
-        command_queue.push(new eb.command.RunClean(["#{pathed_build_name}"], {root_dir: @YAML_dir}))
-        command_queue.push(new eb.command.RunClean(["#{eb.utils.compressedName(pathed_build_name)}"], {root_dir: @YAML_dir})) if command.isCompressed()
+        command_queue.push(new eb.command.Clean(["#{pathed_build_name}"], {root_dir: @YAML_dir}))
+        command_queue.push(new eb.command.Clean(["#{eb.utils.compressedName(pathed_build_name)}"], {root_dir: @YAML_dir})) if command.isCompressed()
 
     ###############################
     # cake postinstall
@@ -90,7 +90,7 @@ class eb.Oven
     @postinstall(_.defaults({clean: false}, options), postinstall_queue)
 
     for command in postinstall_queue.commands()
-      continue unless command instanceof eb.command.RunCommand
+      continue unless command instanceof eb.command.Command
 
       # undo the copy
       if command.command is 'cp'
@@ -100,19 +100,18 @@ class eb.Oven
         args.push(target)
 
         # add the command
-        command_queue.push(new eb.command.RunClean(args, {root_dir: @YAML_dir}))
+        command_queue.push(new eb.command.Clean(args, {root_dir: @YAML_dir}))
 
     # add footer
     if options.verbose
-      command_queue.push({run: (callback, options, queue) -> console.log("clean completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.push({run: (run_options, callback, queue) -> console.log("clean completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    command_queue.run(null, options) if owns_queue
+    command_queue.run(options) if owns_queue
     @
 
   build: (options={}, command_queue) ->
-    owns_queue = !command_queue
-    command_queue or= new eb.command.Queue()
+    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
 
     # add the clean commands
     @clean(options, command_queue) if options.clean
@@ -122,7 +121,7 @@ class eb.Oven
 
     # add header
     if options.verbose
-      command_queue.push({run: (callback, options, queue) -> console.log("************build #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
+      command_queue.push({run: (run_options, callback, queue) -> console.log("------------build #{if options.preview then 'started (PREVIEW)' else 'started'}------------"); callback?()})
 
     # collect files to build
     for set_name, set of @YAML
@@ -150,19 +149,18 @@ class eb.Oven
         args.push(file) for file in file_group.files
 
         # add the command
-        command_queue.push(new eb.command.RunCoffee(args, {root_dir: @YAML_dir, compress: set_options.compress, test: options.test}))
+        command_queue.push(new eb.command.Coffee(args, {root_dir: @YAML_dir, compress: set_options.compress, test: options.test}))
 
     # add footer
     if options.verbose
-      command_queue.push({run: (callback, options, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.push({run: (run_options, callback, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    command_queue.run(null, options) if owns_queue
+    command_queue.run(options) if owns_queue
     @
 
   test: (options={}, command_queue) ->
-    owns_queue = !command_queue
-    command_queue or= new eb.command.Queue()
+    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
 
     # add the build commands (will add clean if specified since 'clean' would be in the options)
     @build(_.defaults({test: true}, options), command_queue)  if options.build or options.watch
@@ -173,7 +171,7 @@ class eb.Oven
 
     # add header
     if options.verbose
-      test_queue.push({run: (callback, options, queue) -> console.log("************test #{if options.preview then 'started (PREVIEW)' else 'started'}************"); callback?()})
+      test_queue.push({run: (run_options, callback, queue) -> console.log("------------test #{if options.preview then 'started (PREVIEW)' else 'started'}------------"); callback?()})
 
     # collect tests to run
     for set_name, set of @YAML
@@ -202,33 +200,35 @@ class eb.Oven
             args.push(true) if args.length < (length_base + 2)
 
           # add the command
-          test_queue.push(new eb.command.RunTest(set_options.command, args, {root_dir: @YAML_dir}))
+          test_queue.push(new eb.command.Test(set_options.command, args, {root_dir: @YAML_dir}))
 
     # add footer
     unless options.preview
-      test_queue.push({run: (callback, options, queue) ->
-        total_error_count = 0
-        console.log("\n************GROUP TEST RESULTS********")
-        for command in test_queue.commands()
-          continue unless (command instanceof eb.command.RunTest)
-          total_error_count += if command.exitCode() then 1 else 0
-          console.log("#{if command.exitCode() then '✖' else '✔'} #{command.fileName()}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
-        console.log("**************************************")
-        console.log(if total_error_count then "All tests ran with with #{total_error_count} error(s)" else "All tests ran successfully!")
-        console.log("**************************************")
+      test_queue.push({run: (run_options, callback, queue) ->
+        unless (options.preview or options.verbose)
+          total_error_count = 0
+          console.log("\n-------------GROUP TEST RESULTS--------")
+          for command in test_queue.commands()
+            continue unless (command instanceof eb.command.Test)
+            total_error_count += if command.exitCode() then 1 else 0
+            console.log("#{if command.exitCode() then '✖' else '✔'} #{command.fileName()}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
+          console.log("--------------------------------------")
+          console.log(if total_error_count then "All tests ran with with #{total_error_count} error(s)" else "All tests ran successfully!")
+          console.log("--------------------------------------")
+
+        callback?(0)
 
         # done so exit so test runners know the condition of the tests
-        process.exit(if (queue.errorCount() > 0) then 1 else 0) unless options.watch
-        callback?(0)
+        if not options.watch and not options.no_exit
+          process.exit(if (queue.errorCount() > 0) then 1 else 0)
       })
 
     # run
-    command_queue.run(null, options) if owns_queue
+    command_queue.run(options) if owns_queue
     @
 
   postinstall: (options={}, command_queue) ->
-    owns_queue = !command_queue
-    command_queue or= new eb.command.Queue()
+    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
 
     # collect tests to run
     for set_name, set of @YAML
@@ -240,12 +240,39 @@ class eb.Oven
         (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
 
         # add the command
-        command_queue.push(new eb.command.RunCommand(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
+        command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
 
     # add footer
     if options.verbose
-      command_queue.push({run: (callback, options, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
+      command_queue.push({run: (run_options, callback, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    command_queue.run(null, options) if owns_queue
+    command_queue.run(options) if owns_queue
+    @
+
+  gitPush: (options={}, command_queue) ->
+    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+
+    test_queue = new eb.command.Queue()
+    command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'))
+
+    # build a chain of commands
+    @clean(options, test_queue).postinstall(options, test_queue).build(options, test_queue).test(_.defaults({no_exit: true}, options), test_queue)
+    test_queue.push({run: (run_options, callback, queue) ->
+
+      # don't run because the tests weren't successful
+      unless (options.preview or options.verbose)
+        if queue.errorCount()
+          console.log("gitpush aborted due to #{queue.errorCount()} error(s)")
+          callback?(queue.errorCount()); return
+
+      git_command = new eb.command.GitPush()
+      git_command.run(options, (code) ->
+        console.log("gitpush completed with #{code} error(s)") unless options.verbose
+        callback?(code)
+      )
+    })
+
+    # run
+    command_queue.run(options) if owns_queue
     @

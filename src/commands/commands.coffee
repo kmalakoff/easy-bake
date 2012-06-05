@@ -5,17 +5,17 @@ class eb.command.RunQueue
   constructor: (@run_queue, @name) ->
   queue: -> return @run_queue
 
-  run: (callback, options={}) ->
+  run: (options={}, callback) ->
     # display
     console.log("running queue: #{@name}") if options.verbose
 
     # execute
-    @run_queue.run(callback, options)
+    @run_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
 
-class eb.command.RunCommand
+class eb.command.Command
   constructor: (@command, @args=[], @command_options={}) ->
 
-  run: (callback, options={}) ->
+  run: (options={}, callback) ->
     # display
     if options.preview or options.verbose
       display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
@@ -31,11 +31,11 @@ class eb.command.RunCommand
     spawned.on 'exit', (code) ->
       callback?(code, @)
 
-class eb.command.RunClean
+class eb.command.Clean
   constructor: (@args=[], @command_options={}) ->
   target: -> @args[@args.length-1]
 
-  run: (callback, options={}) ->
+  run: (options={}, callback) ->
     (callback?(0, @); return) unless path.existsSync(@target()) # nothing to delete
 
     # display
@@ -47,14 +47,14 @@ class eb.command.RunClean
     if @args[0]=='-r' then wrench.rmdirSyncRecursive(@args[1]) else fs.unlink(@args[0])
     callback?(0, @)
 
-class eb.command.RunCoffee
+class eb.command.Coffee
   constructor: (@args=[], @command_options={}) ->
   targetDirectory: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
   targetNames: -> return if ((index = _.indexOf(@args, '-j')) >= 0) then [@args[index+1]] else @args.slice(_.indexOf(@args, '-c')+1)
   isCompressed: -> return @command_options.compress
   runsTests: -> return @command_options.test
 
-  run: (callback, options={}) ->
+  run: (options={}, callback) ->
     # display
     if options.preview or options.verbose
       display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
@@ -83,27 +83,24 @@ class eb.command.RunCoffee
 
         # add to the compress queue
         if @isCompressed()
-          post_build_queue.push(new eb.command.RunUglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
+          post_build_queue.push(new eb.command.UglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
 
       # add the test command
       if @runsTests() and @already_run
-        post_build_queue.push(new eb.command.RunCommand('cake', ['test'], {root_dir: @command_options.root_dir}))
+        post_build_queue.push(new eb.command.Command('cake', ['test'], {root_dir: @command_options.root_dir}))
       @already_run = true
 
       # run the post build queue
-      if post_build_queue
-        post_build_queue.run((=> callback?(code, @)), options)
-      else
-        callback?(0, @)
+      if post_build_queue then post_build_queue.run(options, => callback?(code, @)) else callback?(0, @)
 
     # watch vs build callbacks are slightly different
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
 
-class eb.command.RunUglifyJS
+class eb.command.UglifyJS
   constructor: (@args=[], @command_options={}) ->
   outputName: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
 
-  run: (callback, options={}) ->
+  run: (options={}, callback) ->
     scoped_command = "node_modules/.bin/uglifyjs"
 
     # display
@@ -127,13 +124,13 @@ class eb.command.RunUglifyJS
       timeLog("failed to minify #{@outputName().replace("#{@command_options.root_dir}/", '')} .... error code: #{e.code}")
       callback?(e.code, @)
 
-class eb.command.RunTest
+class eb.command.Test
   constructor: (@command, @args=[], @command_options={}) ->
   usingPhantomJS: -> return (@command is 'phantomjs')
   fileName: -> return eb.utils.relativePath((if @usingPhantomJS() then @args[1] else @args[0]), @command_options.root_dir)
   exitCode: -> return @exit_code
 
-  run: (callback, options={}) ->
+  run: (options={}, callback) ->
     if @usingPhantomJS()
       scoped_command = @command
       scoped_args = _.clone(@args)
@@ -165,3 +162,11 @@ class eb.command.RunTest
       else
         timeLog("tests failed #{@fileName()} (exit code: #{code})")
       callback?(code, @)
+
+class eb.command.GitPush
+  run: (options={}, callback) ->
+    git_queue = new eb.command.Queue()
+    git_queue.push(new eb.command.Command('git', ['add', '.'], {root_dir: @YAML_dir}))
+    git_queue.push(new eb.command.Command('git', ['commit'], {root_dir: @YAML_dir}))
+    git_queue.push(new eb.command.Command('git', ['push'], {root_dir: @YAML_dir}))
+    git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))

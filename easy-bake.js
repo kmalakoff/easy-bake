@@ -85,6 +85,11 @@
           'Called by npm after installing library', function(options) {
             return _this.postinstall(options);
           }
+        ],
+        gitpush: [
+          'Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project', function(options) {
+            return _this.gitPush(options);
+          }
         ]
       };
       task_names = options.tasks ? options.tasks : _.keys(tasks);
@@ -112,8 +117,8 @@
       command_queue || (command_queue = new eb.command.Queue());
       if (options.verbose) {
         command_queue.push({
-          run: function(callback, options, queue) {
-            console.log("************clean " + (options.preview ? 'started (PREVIEW)' : 'started') + "************");
+          run: function(run_options, callback, queue) {
+            console.log("------------clean " + (options.preview ? 'started (PREVIEW)' : 'started') + "------------");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
@@ -125,7 +130,7 @@
       _ref = build_queue.commands();
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         command = _ref[_i];
-        if (!(command instanceof eb.command.RunCoffee)) {
+        if (!(command instanceof eb.command.Coffee)) {
           continue;
         }
         output_directory = command.targetDirectory();
@@ -137,11 +142,11 @@
             root_dir: this.YAML_dir
           });
           pathed_build_name = "" + build_directory + "/" + (eb.utils.builtName(path.basename(source_name)));
-          command_queue.push(new eb.command.RunClean(["" + pathed_build_name], {
+          command_queue.push(new eb.command.Clean(["" + pathed_build_name], {
             root_dir: this.YAML_dir
           }));
           if (command.isCompressed()) {
-            command_queue.push(new eb.command.RunClean(["" + (eb.utils.compressedName(pathed_build_name))], {
+            command_queue.push(new eb.command.Clean(["" + (eb.utils.compressedName(pathed_build_name))], {
               root_dir: this.YAML_dir
             }));
           }
@@ -154,7 +159,7 @@
       _ref1 = postinstall_queue.commands();
       for (_k = 0, _len2 = _ref1.length; _k < _len2; _k++) {
         command = _ref1[_k];
-        if (!(command instanceof eb.command.RunCommand)) {
+        if (!(command instanceof eb.command.Command)) {
           continue;
         }
         if (command.command === 'cp') {
@@ -164,21 +169,21 @@
             args.push('-r');
           }
           args.push(target);
-          command_queue.push(new eb.command.RunClean(args, {
+          command_queue.push(new eb.command.Clean(args, {
             root_dir: this.YAML_dir
           }));
         }
       }
       if (options.verbose) {
         command_queue.push({
-          run: function(callback, options, queue) {
+          run: function(run_options, callback, queue) {
             console.log("clean completed with " + (queue.errorCount()) + " error(s)");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
       }
       if (owns_queue) {
-        command_queue.run(null, options);
+        command_queue.run(options);
       }
       return this;
     };
@@ -196,8 +201,8 @@
       this.postinstall(options, command_queue);
       if (options.verbose) {
         command_queue.push({
-          run: function(callback, options, queue) {
-            console.log("************build " + (options.preview ? 'started (PREVIEW)' : 'started') + "************");
+          run: function(run_options, callback, queue) {
+            console.log("------------build " + (options.preview ? 'started (PREVIEW)' : 'started') + "------------");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
@@ -241,7 +246,7 @@
             file = _ref1[_j];
             args.push(file);
           }
-          command_queue.push(new eb.command.RunCoffee(args, {
+          command_queue.push(new eb.command.Coffee(args, {
             root_dir: this.YAML_dir,
             compress: set_options.compress,
             test: options.test
@@ -250,14 +255,14 @@
       }
       if (options.verbose) {
         command_queue.push({
-          run: function(callback, options, queue) {
+          run: function(run_options, callback, queue) {
             console.log("build completed with " + (queue.errorCount()) + " error(s)");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
       }
       if (owns_queue) {
-        command_queue.run(null, options);
+        command_queue.run(options);
       }
       return this;
     };
@@ -278,8 +283,8 @@
       command_queue.push(new eb.command.RunQueue(test_queue, 'tests'));
       if (options.verbose) {
         test_queue.push({
-          run: function(callback, options, queue) {
-            console.log("************test " + (options.preview ? 'started (PREVIEW)' : 'started') + "************");
+          run: function(run_options, callback, queue) {
+            console.log("------------test " + (options.preview ? 'started (PREVIEW)' : 'started') + "------------");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
@@ -324,7 +329,7 @@
                 args.push(true);
               }
             }
-            test_queue.push(new eb.command.RunTest(set_options.command, args, {
+            test_queue.push(new eb.command.Test(set_options.command, args, {
               root_dir: this.YAML_dir
             }));
           }
@@ -332,31 +337,35 @@
       }
       if (!options.preview) {
         test_queue.push({
-          run: function(callback, options, queue) {
+          run: function(run_options, callback, queue) {
             var command, total_error_count, _k, _len2, _ref2;
-            total_error_count = 0;
-            console.log("\n************GROUP TEST RESULTS********");
-            _ref2 = test_queue.commands();
-            for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-              command = _ref2[_k];
-              if (!(command instanceof eb.command.RunTest)) {
-                continue;
+            if (!(options.preview || options.verbose)) {
+              total_error_count = 0;
+              console.log("\n-------------GROUP TEST RESULTS--------");
+              _ref2 = test_queue.commands();
+              for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
+                command = _ref2[_k];
+                if (!(command instanceof eb.command.Test)) {
+                  continue;
+                }
+                total_error_count += command.exitCode() ? 1 : 0;
+                console.log("" + (command.exitCode() ? '✖' : '✔') + " " + (command.fileName()) + (command.exitCode() ? ' (exit code: ' + command.exitCode() + ')' : ''));
               }
-              total_error_count += command.exitCode() ? 1 : 0;
-              console.log("" + (command.exitCode() ? '✖' : '✔') + " " + (command.fileName()) + (command.exitCode() ? ' (exit code: ' + command.exitCode() + ')' : ''));
+              console.log("--------------------------------------");
+              console.log(total_error_count ? "All tests ran with with " + total_error_count + " error(s)" : "All tests ran successfully!");
+              console.log("--------------------------------------");
             }
-            console.log("**************************************");
-            console.log(total_error_count ? "All tests ran with with " + total_error_count + " error(s)" : "All tests ran successfully!");
-            console.log("**************************************");
-            if (!options.watch) {
-              process.exit(queue.errorCount() > 0 ? 1 : 0);
+            if (typeof callback === "function") {
+              callback(0);
             }
-            return typeof callback === "function" ? callback(0) : void 0;
+            if (!options.watch && !options.no_exit) {
+              return process.exit(queue.errorCount() > 0 ? 1 : 0);
+            }
           }
         });
       }
       if (owns_queue) {
-        command_queue.run(null, options);
+        command_queue.run(options);
       }
       return this;
     };
@@ -380,21 +389,60 @@
             console.log("postinstall " + set_name + "." + name + " is not a command");
             continue;
           }
-          command_queue.push(new eb.command.RunCommand(command_info.command, command_info.args, _.defaults({
+          command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({
             root_dir: this.YAML_dir
           }, command_info.options)));
         }
       }
       if (options.verbose) {
         command_queue.push({
-          run: function(callback, options, queue) {
+          run: function(run_options, callback, queue) {
             console.log("postinstall completed with " + (queue.errorCount()) + " error(s)");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
       }
       if (owns_queue) {
-        command_queue.run(null, options);
+        command_queue.run(options);
+      }
+      return this;
+    };
+
+    Oven.prototype.gitPush = function(options, command_queue) {
+      var owns_queue, test_queue;
+      if (options == null) {
+        options = {};
+      }
+      owns_queue = !command_queue;
+      command_queue || (command_queue = new eb.command.Queue());
+      test_queue = new eb.command.Queue();
+      command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'));
+      this.clean(options, test_queue).postinstall(options, test_queue).build(options, test_queue).test(_.defaults({
+        no_exit: true
+      }, options), test_queue);
+      test_queue.push({
+        run: function(run_options, callback, queue) {
+          var git_command;
+          if (!(options.preview || options.verbose)) {
+            if (queue.errorCount()) {
+              console.log("gitpush aborted due to " + (queue.errorCount()) + " error(s)");
+              if (typeof callback === "function") {
+                callback(queue.errorCount());
+              }
+              return;
+            }
+          }
+          git_command = new eb.command.GitPush();
+          return git_command.run(options, function(code) {
+            if (!options.verbose) {
+              console.log("gitpush completed with " + code + " error(s)");
+            }
+            return typeof callback === "function" ? callback(code) : void 0;
+          });
+        }
+      });
+      if (owns_queue) {
+        command_queue.run(options);
       }
       return this;
     };

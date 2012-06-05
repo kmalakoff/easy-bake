@@ -20,6 +20,7 @@ Commands Supplied by EasyBake
 - **cake watch**: automatically scans for and builds the project when changes are detected
 - **cake test**: runs tests (you might need to install phantomjs: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs')
 - **cake postinstall**: runs postinstall steps like copying dependent client scripts to vendor directory, etc.
+- **cake gitpush**: cleans, builds, tests and if successful, runs git commands to add, commit, and push the project.
 
 Command Options:
 -----------------------

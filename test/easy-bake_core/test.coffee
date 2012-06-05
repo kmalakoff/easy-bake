@@ -33,7 +33,7 @@ exports.easy_bake_core =
     oven = (new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")).publishOptions()
     command_queue = new eb.command.Queue()
     oven.clean(null, command_queue).build(null, command_queue).clean(null, command_queue)
-    command_queue.run(->console.log('chaining worked'); test.done())
+    command_queue.run(null, ->console.log('chaining worked'); test.done())
 
   'Manual Tests': (test) ->
     oven = (new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")).publishOptions()
