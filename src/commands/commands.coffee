@@ -52,6 +52,7 @@ class eb.command.RunCoffee
   targetNames: ->
     return if ((index = _.indexOf(@args, '-j')) >= 0) then [@args[index+1]] else @args.slice(_.indexOf(@args, '-c')+1)
   isCompressed: -> return @command_options.compress
+  runsTests: -> return @command_options.test
 
   run: (callback, options={}) ->
     # display
@@ -69,8 +70,8 @@ class eb.command.RunCoffee
       output_directory = @targetDirectory()
       output_names = @targetNames()
 
-      if @isCompressed()
-        compress_queue = new eb.command.Queue()
+      if @isCompressed() or (@runsTests() and @already_run)
+        post_build_queue = new eb.command.Queue()
 
       for source_name in output_names
         build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name), @command_options.root_dir)
@@ -82,12 +83,17 @@ class eb.command.RunCoffee
           timeLog("failed to compile #{pathed_build_name.replace("#{@command_options.root_dir}/", '')} .... error code: #{code}")
 
         # add to the compress queue
-        if compress_queue
-          compress_queue.push(new eb.command.RunUglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
+        if @isCompressed()
+          post_build_queue.push(new eb.command.RunUglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
 
-      # run the compress queue
-      if compress_queue
-        compress_queue.run((=> callback?(code, @)), options)
+      # add the test command
+      if @runsTests() and @already_run
+        post_build_queue.push(new eb.command.RunCommand('cake', ['test'], {root_dir: @command_options.root_dir}))
+      @already_run = true
+
+      # run the post build queue
+      if post_build_queue
+        post_build_queue.run((=> callback?(code, @)), options)
       else
         callback?(0, @)
 

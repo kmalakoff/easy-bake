@@ -50,6 +50,7 @@
       option('-s', '--silent', 'silence the console output');
       option('-p', '--preview', 'preview the action');
       option('-v', '--verbose', 'display additional information');
+      option('-b', '--build', 'builds the project (used with test)');
       tasks = {
         clean: [
           'Remove generated JavaScript files', function(options) {
@@ -63,7 +64,9 @@
         ],
         watch: [
           'Watch library and tests', function(options) {
-            return _this.watch(options);
+            return _this.build(_.defaults({
+              watch: true
+            }, options));
           }
         ],
         test: [
@@ -170,17 +173,8 @@
       }
     };
 
-    Oven.prototype.watch = function(options, command_queue) {
-      if (options == null) {
-        options = {};
-      }
-      return this.build(_.defaults({
-        watch: true
-      }, options), command_queue);
-    };
-
     Oven.prototype.build = function(options, command_queue) {
-      var args, file_group, file_groups, owns_queue, set, set_name, set_options, _i, _len, _ref;
+      var args, file, file_group, file_groups, owns_queue, set, set_name, set_options, _i, _j, _len, _len1, _ref, _ref1;
       if (options == null) {
         options = {};
       }
@@ -229,10 +223,15 @@
             args.push(this.YAML_dir);
           }
           args.push('-c');
-          args = args.concat(file_group.files);
+          _ref1 = file_group.files;
+          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+            file = _ref1[_j];
+            args.push(file);
+          }
           command_queue.push(new eb.command.RunCoffee(args, {
             root_dir: this.YAML_dir,
-            compress: set_options.compress
+            compress: set_options.compress,
+            test: options.test
           }));
         }
       }
@@ -256,7 +255,11 @@
       }
       owns_queue = !command_queue;
       command_queue || (command_queue = new eb.command.Queue());
-      this.build(options, command_queue);
+      if (options.build || options.watch) {
+        this.build(_.defaults({
+          test: true
+        }, options), command_queue);
+      }
       test_queue = new eb.command.Queue();
       command_queue.push(new eb.command.RunQueue(test_queue, 'tests'));
       if (options.verbose) {

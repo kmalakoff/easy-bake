@@ -30,16 +30,17 @@ class eb.Oven
     ##############################
     # CAKE TASKS
     ##############################
-    option '-c', '--clean', 'clean the project'
-    option '-w', '--watch', 'watch for changes'
-    option '-s', '--silent', 'silence the console output'
-    option '-p', '--preview', 'preview the action'
-    option '-v', '--verbose', 'display additional information'
+    option('-c', '--clean',     'clean the project')
+    option('-w', '--watch',     'watch for changes')
+    option('-s', '--silent',    'silence the console output')
+    option('-p', '--preview',   'preview the action')
+    option('-v', '--verbose',   'display additional information')
+    option('-b', '--build',     'builds the project (used with test)')
 
     tasks =
       clean:        ['Remove generated JavaScript files',   (options) => @clean(options)]
       build:        ['Build library and tests',             (options) => @build(options)]
-      watch:        ['Watch library and tests',             (options) => @watch(options)]
+      watch:        ['Watch library and tests',             (options) => @build(_.defaults({watch: true}, options))]
       test:         ['Test library',                        (options) => @test(options)]
       postinstall:  ['Performs postinstall actions',        (options) => @postinstall(options)]
 
@@ -106,7 +107,6 @@ class eb.Oven
     # run
     command_queue.run(null, options) if owns_queue
 
-  watch: (options={}, command_queue) -> @build(_.defaults({watch: true}, options), command_queue)
   build: (options={}, command_queue) ->
     owns_queue = !command_queue
     command_queue or= new eb.command.Queue()
@@ -144,10 +144,10 @@ class eb.Oven
         else
           args.push(@YAML_dir)
         args.push('-c')
-        args = args.concat(file_group.files)
+        args.push(file) for file in file_group.files
 
         # add the command
-        command_queue.push(new eb.command.RunCoffee(args, {root_dir: @YAML_dir, compress: set_options.compress}))
+        command_queue.push(new eb.command.RunCoffee(args, {root_dir: @YAML_dir, compress: set_options.compress, test: options.test}))
 
     # add footer
     if options.verbose
@@ -161,7 +161,7 @@ class eb.Oven
     command_queue or= new eb.command.Queue()
 
     # add the build commands (will add clean if specified since 'clean' would be in the options)
-    @build(options, command_queue)
+    @build(_.defaults({test: true}, options), command_queue)  if options.build or options.watch
 
     # create a new queue for the tests so we can get a group result
     test_queue = new eb.command.Queue()

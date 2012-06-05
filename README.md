@@ -58,26 +58,27 @@ easybake = require('easy-bake')
 Options include:
 
 1. tasks - an array of tasks to include (in case you want to use only a subset)
-2. namespace - provides a namespace for the tasks like namspace.build
+2. namespace - provides a namespace for the tasks like 'cake namspace.build' instead of just 'cake build'
 
 And that's it! You will have access to the following cake commands and options in your projects...
 
 Commands Supplied by EasyBake
 -----------------------
 
-1. 'cake clean' - cleans the project of all compiled files
-2. 'cake build' - performs a single build
-3. 'cake watch' - automatically scans for and builds the project when changes are detected
-3. 'cake test' - cleans, builds, and runs tests. Note: the tests require installing phantomjs
-3. 'cake postinstall' - runs postintall steps like copying dependent client scripts to vendor, etc.
+1. 'cake clean'         - cleans the project of all compiled files
+2. 'cake build'         - performs a single build
+3. 'cake watch'         - automatically scans for and builds the project when changes are detected
+4. 'cake test'          - runs tests (you might need to install phantomjs: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs')
+5. 'cake postinstall'   - runs postinstall steps like copying dependent client scripts to vendor directory, etc.
 
 Options:
 
-1. '-c' or '--clean'  - cleans the project before running a new command
-2. '-w' or '--watch'  - watches for changes
-3. '-s' or '--silent' - does not output messages to the console (unless errors occur)
-4. '-p' or '--preview' - preview the action
-
+1. '-c' or '--clean'    - cleans the project before running a new command
+2. '-w' or '--watch'    - watches for changes
+3. '-s' or '--silent'   - does not output messages to the console (unless errors occur)
+4. '-p' or '--preview'  - preview the action
+5. '-v' or '--verbose'  - display additional information
+6. '-b' or '--build'    - builds the project (used with test)
 
 Testing
 -----------------------
@@ -86,7 +87,7 @@ If you are using TravisCI, you should add something like this to your project.js
 ```
 "scripts": {
   "postinstall": "node_modules/.bin/cake postinstall",
-  "test": "node_modules/.bin/cake -c test"
+  "test": "node_modules/.bin/cake -c -b test"
 },
 ```
 
