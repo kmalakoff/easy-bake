@@ -2,7 +2,7 @@ PROJECT_ROOT = "#{__dirname}/../../.."
 
 # EasyBake
 eb = if not @eb and (typeof(require) != 'undefined') then require("#{PROJECT_ROOT}/easy-bake") else @eb
-baker = null
+oven = null
 
 exports.easy_bake_core =
   'TEST DEPENDENCY MISSING': (test) ->
@@ -10,22 +10,34 @@ exports.easy_bake_core =
     test.done()
 
   'Loading a YAML': (test) ->
-    baker = new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")
+    oven = new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")
+    oven.publishOptions().publishTasks()  # chaining
     test.done()
 
   'Build': (test) ->
-    baker.build({preview: true})
-    baker.build()
+    oven.build({preview: true})
+    oven.build()
     test.done()
 
   'Clean': (test) ->
-    baker.clean({preview: true})
-    baker.clean()
+    oven.clean({preview: true})
+    oven.clean()
     test.done()
 
   'Clean and Build': (test) ->
-    baker.build({clean: true, preview: true})
-    baker.build({clean: true})
+    oven.build({clean: true, preview: true})
+    oven.build({clean: true})
+    test.done()
+
+  'Chaining': (test) ->
+    oven = (new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")).publishOptions()
+    command_queue = new eb.command.Queue()
+    oven.clean(null, command_queue).build(null, command_queue).clean(null, command_queue)
+    command_queue.run(->console.log('chaining worked'); test.done())
+
+  'Manual Tests': (test) ->
+    oven = (new eb.Oven("#{__dirname}/../../sample_library/easy-bake-config-test.yaml")).publishOptions()
+    task 'build', 'Build library and tests', (options) -> oven.build(options)
     test.done()
 
   'Error cases': (test) ->

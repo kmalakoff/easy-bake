@@ -39,18 +39,23 @@
       this.YAML = yaml.load(fs.readFileSync(YAML_filename, 'utf8'));
     }
 
-    Oven.prototype.publishTasks = function(options) {
-      var args, task_name, task_names, tasks, _i, _len, _results,
-        _this = this;
-      if (options == null) {
-        options = {};
-      }
+    Oven.prototype.publishOptions = function() {
       option('-c', '--clean', 'clean the project');
       option('-w', '--watch', 'watch for changes');
       option('-s', '--silent', 'silence the console output');
       option('-p', '--preview', 'preview the action');
       option('-v', '--verbose', 'display additional information');
       option('-b', '--build', 'builds the project (used with test)');
+      return this;
+    };
+
+    Oven.prototype.publishTasks = function(options) {
+      var args, task_name, task_names, tasks, _i, _len,
+        _this = this;
+      if (options == null) {
+        options = {};
+      }
+      this.publishOptions();
       tasks = {
         clean: [
           'Remove generated JavaScript files', function(options) {
@@ -75,13 +80,12 @@
           }
         ],
         postinstall: [
-          'Performs postinstall actions', function(options) {
+          'Called by npm after installing library', function(options) {
             return _this.postinstall(options);
           }
         ]
       };
       task_names = options.tasks ? options.tasks : _.keys(tasks);
-      _results = [];
       for (_i = 0, _len = task_names.length; _i < _len; _i++) {
         task_name = task_names[_i];
         args = tasks[task_name];
@@ -92,9 +96,9 @@
         if (options.namespace) {
           task_name = "" + options.namespace + "." + task_name;
         }
-        _results.push(task.apply(null, [task_name].concat(args)));
+        task.apply(null, [task_name].concat(args));
       }
-      return _results;
+      return this;
     };
 
     Oven.prototype.clean = function(options, command_queue) {
@@ -172,8 +176,9 @@
         });
       }
       if (owns_queue) {
-        return command_queue.run(null, options);
+        command_queue.run(null, options);
       }
+      return this;
     };
 
     Oven.prototype.build = function(options, command_queue) {
@@ -250,8 +255,9 @@
         });
       }
       if (owns_queue) {
-        return command_queue.run(null, options);
+        command_queue.run(null, options);
       }
+      return this;
     };
 
     Oven.prototype.test = function(options, command_queue) {
@@ -348,8 +354,9 @@
         });
       }
       if (owns_queue) {
-        return command_queue.run(null, options);
+        command_queue.run(null, options);
       }
+      return this;
     };
 
     Oven.prototype.postinstall = function(options, command_queue) {
@@ -385,8 +392,9 @@
         });
       }
       if (owns_queue) {
-        return command_queue.run(null, options);
+        command_queue.run(null, options);
       }
+      return this;
     };
 
     return Oven;

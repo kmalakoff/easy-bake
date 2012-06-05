@@ -1,5 +1,4 @@
 library:
-  output: '{root}'
   files:
     - src/easy-bake.coffee
 

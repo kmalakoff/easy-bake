@@ -26,23 +26,24 @@ class eb.Oven
     @YAML_dir = path.dirname(fs.realpathSync(YAML_filename))
     @YAML = yaml.load(fs.readFileSync(YAML_filename, 'utf8'))
 
-  publishTasks: (options={}) ->
-    ##############################
-    # CAKE TASKS
-    ##############################
+  publishOptions: ->
     option('-c', '--clean',     'clean the project')
     option('-w', '--watch',     'watch for changes')
     option('-s', '--silent',    'silence the console output')
     option('-p', '--preview',   'preview the action')
     option('-v', '--verbose',   'display additional information')
     option('-b', '--build',     'builds the project (used with test)')
+    @
+
+  publishTasks: (options={}) ->
+    @publishOptions()
 
     tasks =
-      clean:        ['Remove generated JavaScript files',   (options) => @clean(options)]
-      build:        ['Build library and tests',             (options) => @build(options)]
-      watch:        ['Watch library and tests',             (options) => @build(_.defaults({watch: true}, options))]
-      test:         ['Test library',                        (options) => @test(options)]
-      postinstall:  ['Performs postinstall actions',        (options) => @postinstall(options)]
+      clean:        ['Remove generated JavaScript files',       (options) => @clean(options)]
+      build:        ['Build library and tests',                 (options) => @build(options)]
+      watch:        ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
+      test:         ['Test library',                            (options) => @test(options)]
+      postinstall:  ['Called by npm after installing library',  (options) => @postinstall(options)]
 
     # register and optionally namespace the tasks
     task_names = if options.tasks then options.tasks else _.keys(tasks)
@@ -51,6 +52,7 @@ class eb.Oven
       (console.log("easy-bake: task name not recognized #{task_name}"); continue) unless args
       task_name = "#{options.namespace}.#{task_name}" if options.namespace
       task.apply(null, [task_name].concat(args))
+    @
 
   clean: (options={}, command_queue) ->
     owns_queue = !command_queue
@@ -106,6 +108,7 @@ class eb.Oven
 
     # run
     command_queue.run(null, options) if owns_queue
+    @
 
   build: (options={}, command_queue) ->
     owns_queue = !command_queue
@@ -155,6 +158,7 @@ class eb.Oven
 
     # run
     command_queue.run(null, options) if owns_queue
+    @
 
   test: (options={}, command_queue) ->
     owns_queue = !command_queue
@@ -220,6 +224,7 @@ class eb.Oven
 
     # run
     command_queue.run(null, options) if owns_queue
+    @
 
   postinstall: (options={}, command_queue) ->
     owns_queue = !command_queue
@@ -243,3 +248,4 @@ class eb.Oven
 
     # run
     command_queue.run(null, options) if owns_queue
+    @
