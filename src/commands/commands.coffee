@@ -151,7 +151,6 @@ class eb.command.RunTest
 
     # make files relative
     scoped_args = _.map(scoped_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir)) unless @usingPhantomJS()
-    console.log(scoped_args.join(' '))
 
     # execute
     spawned = spawn scoped_command, scoped_args

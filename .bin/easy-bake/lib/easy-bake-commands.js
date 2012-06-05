@@ -423,7 +423,6 @@
           return eb.utils.relativePath(arg, _this.command_options.root_dir);
         });
       }
-      console.log(scoped_args.join(' '));
       spawned = spawn(scoped_command, scoped_args);
       spawned.stderr.on('data', function(data) {
         return process.stderr.write(data.toString());
