@@ -39,11 +39,11 @@ class eb.Oven
     @publishOptions()
 
     tasks =
+      postinstall:  ['Called by npm after installing library',  (options) => @postinstall(options)]
       clean:        ['Remove generated JavaScript files',       (options) => @clean(options)]
       build:        ['Build library and tests',                 (options) => @build(options)]
       watch:        ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
       test:         ['Test library',                            (options) => @test(options)]
-      postinstall:  ['Called by npm after installing library',  (options) => @postinstall(options)]
       gitpush:      ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @gitPush(options)]
 
     # register and optionally namespace the tasks
@@ -53,6 +53,29 @@ class eb.Oven
       (console.log("easy-bake: task name not recognized #{task_name}"); continue) unless args
       task_name = "#{options.namespace}.#{task_name}" if options.namespace
       global.task.apply(null, [task_name].concat(args))
+    @
+
+  postinstall: (options={}, command_queue) ->
+    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+
+    # collect tests to run
+    for set_name, set of @YAML
+      continue unless set_name is 'postinstall'
+
+      # run commands
+      for name, command_info of set
+        # missing the command
+        (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
+
+        # add the command
+        command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
+
+    # add footer
+    if options.verbose
+      command_queue.push({run: (run_options, callback, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
+
+    # run
+    command_queue.run(options) if owns_queue
     @
 
   clean: (options={}, command_queue) ->
@@ -222,29 +245,6 @@ class eb.Oven
         if not options.watch and not options.no_exit
           process.exit(if (queue.errorCount() > 0) then 1 else 0)
       })
-
-    # run
-    command_queue.run(options) if owns_queue
-    @
-
-  postinstall: (options={}, command_queue) ->
-    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
-
-    # collect tests to run
-    for set_name, set of @YAML
-      continue unless set_name is 'postinstall'
-
-      # run commands
-      for name, command_info of set
-        # missing the command
-        (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
-
-        # add the command
-        command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
-
-    # add footer
-    if options.verbose
-      command_queue.push({run: (run_options, callback, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
     command_queue.run(options) if owns_queue

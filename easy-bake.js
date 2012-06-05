@@ -59,6 +59,11 @@
       }
       this.publishOptions();
       tasks = {
+        postinstall: [
+          'Called by npm after installing library', function(options) {
+            return _this.postinstall(options);
+          }
+        ],
         clean: [
           'Remove generated JavaScript files', function(options) {
             return _this.clean(options);
@@ -81,11 +86,6 @@
             return _this.test(options);
           }
         ],
-        postinstall: [
-          'Called by npm after installing library', function(options) {
-            return _this.postinstall(options);
-          }
-        ],
         gitpush: [
           'Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project', function(options) {
             return _this.gitPush(options);
@@ -104,6 +104,44 @@
           task_name = "" + options.namespace + "." + task_name;
         }
         global.task.apply(null, [task_name].concat(args));
+      }
+      return this;
+    };
+
+    Oven.prototype.postinstall = function(options, command_queue) {
+      var command_info, name, owns_queue, set, set_name, _ref;
+      if (options == null) {
+        options = {};
+      }
+      owns_queue = !command_queue;
+      command_queue || (command_queue = new eb.command.Queue());
+      _ref = this.YAML;
+      for (set_name in _ref) {
+        set = _ref[set_name];
+        if (set_name !== 'postinstall') {
+          continue;
+        }
+        for (name in set) {
+          command_info = set[name];
+          if (!command_info.command) {
+            console.log("postinstall " + set_name + "." + name + " is not a command");
+            continue;
+          }
+          command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({
+            root_dir: this.YAML_dir
+          }, command_info.options)));
+        }
+      }
+      if (options.verbose) {
+        command_queue.push({
+          run: function(run_options, callback, queue) {
+            console.log("postinstall completed with " + (queue.errorCount()) + " error(s)");
+            return typeof callback === "function" ? callback() : void 0;
+          }
+        });
+      }
+      if (owns_queue) {
+        command_queue.run(options);
       }
       return this;
     };
@@ -361,44 +399,6 @@
             if (!options.watch && !options.no_exit) {
               return process.exit(queue.errorCount() > 0 ? 1 : 0);
             }
-          }
-        });
-      }
-      if (owns_queue) {
-        command_queue.run(options);
-      }
-      return this;
-    };
-
-    Oven.prototype.postinstall = function(options, command_queue) {
-      var command_info, name, owns_queue, set, set_name, _ref;
-      if (options == null) {
-        options = {};
-      }
-      owns_queue = !command_queue;
-      command_queue || (command_queue = new eb.command.Queue());
-      _ref = this.YAML;
-      for (set_name in _ref) {
-        set = _ref[set_name];
-        if (set_name !== 'postinstall') {
-          continue;
-        }
-        for (name in set) {
-          command_info = set[name];
-          if (!command_info.command) {
-            console.log("postinstall " + set_name + "." + name + " is not a command");
-            continue;
-          }
-          command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({
-            root_dir: this.YAML_dir
-          }, command_info.options)));
-        }
-      }
-      if (options.verbose) {
-        command_queue.push({
-          run: function(run_options, callback, queue) {
-            console.log("postinstall completed with " + (queue.errorCount()) + " error(s)");
-            return typeof callback === "function" ? callback() : void 0;
           }
         });
       }
