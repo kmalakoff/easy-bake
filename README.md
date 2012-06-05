@@ -9,7 +9,65 @@
                      `---'
 ````
 
-EasyBake provides YAML-based Cakefile helpers for common CoffeeScript library packaging functionality
+EasyBake provides YAML-based Cakefile helpers for common CoffeeScript library packaging functionality.
+
+
+Commands Supplied by EasyBake
+-----------------------
+
+- **cake clean**: cleans the project of all compiled files
+- **cake build**: performs a single build
+- **cake watch**: automatically scans for and builds the project when changes are detected
+- **cake test**: runs tests (you might need to install phantomjs: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs')
+- **cake postinstall**: runs postinstall steps like copying dependent client scripts to vendor directory, etc.
+
+Command Options:
+-----------------------
+
+For example: 'cake -c -w test' will first clean your project, build it, run your tests, and re-build and re-run your tests when source files change
+
+Here are the options with the relevant commands:
+
+- **-c**/**--clean** (build, watch, test): cleans the project before running a command
+
+- **-w**/**--watch** (build, test): watches for changes
+
+- **-b'**/**'--build** (test): builds the project (used with test)
+
+- **-p'**/**'--preview** (all): display all of the commands that will be run (without running them!)
+
+- **-v'**/**'--verbose** (all): display additional information
+
+- **-s**/**--silent** (all): does not output messages to the console (unless errors occur)
+
+Sample YAML
+-----------------------
+
+```
+library:
+  files:
+    - src/easy-bake.coffee
+
+lib_test_runners:
+  output: lib/test_runners
+  directories:
+    - src/test_runners
+
+tests:
+  output: ./build
+  bare: true
+  directories:
+    - test/easy-bake_core
+  options:
+    test:
+      command: nodeunit
+      files:
+        - '**/*.js'
+```
+
+
+Project Configuration
+-----------------------
 
 Just include it as a development dependency to your package.json:
 
@@ -30,55 +88,31 @@ Install it:
 npm install
 ```
 
-Create a YAML file to specify what needs to be built (for example easy-bake-config.yaml):
-
-```
-some_group:
-  join: your_library_name.js
-  compress: true
-  files:
-    - src/knockback_core.coffee
-    - src/lib/**.*coffee
-
-some_other_group:
-  join: helpers.js
-  output: build
-  directories:
-    - lib/your_helpers1
-    - lib/your_helpers2
-```
-
 Include it in your Cakefile:
 
 ```
 easybake = require('easy-bake')
-(new easybake.Oven('easy-bake-config.yaml')).publishTasks({})
+(new easybake.Oven('easy-bake-config.yaml')).publishTasks()
 ```
 
-Options include:
+or if you want finer control:
 
-1. tasks - an array of tasks to include (in case you want to use only a subset)
-2. namespace - provides a namespace for the tasks like 'cake namspace.build' instead of just 'cake build'
+```
+easybake = require('easy-bake')
+oven = (new easybake.Oven('easy-bake-config.yaml')).publishOptions()
+
+task 'build', 'Build library and tests', (options) -> myBuildFunction(); oven.build(options)
+task 'postinstall', 'Called by npm after installing library', (options) -> myPostInstallFunction(); oven.postinstall(options)
+```
+
+###Oven.publishTasks() Options
+
+- **tasks**: an array of tasks to include (in case you want to use only a subset)
+- **namespace**: provides a namespace for the tasks like 'cake namspace.build' instead of just 'cake build'
+
+
 
 And that's it! You will have access to the following cake commands and options in your projects...
-
-Commands Supplied by EasyBake
------------------------
-
-1. 'cake clean'         - cleans the project of all compiled files
-2. 'cake build'         - performs a single build
-3. 'cake watch'         - automatically scans for and builds the project when changes are detected
-4. 'cake test'          - runs tests (you might need to install phantomjs: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs')
-5. 'cake postinstall'   - runs postinstall steps like copying dependent client scripts to vendor directory, etc.
-
-Options:
-
-1. '-c' or '--clean'    - cleans the project before running a new command
-2. '-w' or '--watch'    - watches for changes
-3. '-s' or '--silent'   - does not output messages to the console (unless errors occur)
-4. '-p' or '--preview'  - preview the action
-5. '-v' or '--verbose'  - display additional information
-6. '-b' or '--build'    - builds the project (used with test)
 
 Testing
 -----------------------
