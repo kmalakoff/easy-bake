@@ -16,14 +16,20 @@ class eb.command.Command
   constructor: (@command, @args=[], @command_options={}) ->
 
   run: (options={}, callback) ->
+    scoped_args = @args
+
+    # look up the sources in case they are inside node_modules
+    for index, arg of @args
+      try (scoped_args[index] = require.resolve(arg)) catch e
+
     # display
     if options.preview or options.verbose
-      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
+      display_args = _.map(scoped_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
       console.log("#{if @command_options.cwd then (@command_options.cwd + ': ') else ''}#{@command} #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
-    spawned = spawn @command, @args, @command_options
+    spawned = spawn @command, scoped_args, @command_options
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
