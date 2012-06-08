@@ -12,7 +12,7 @@
 
   yaml = require('js-yaml');
 
-  _ = require('underscore')._;
+  _ = require('underscore');
 
   if (!global.option) {
     require('coffee-script/lib/coffee-script/cake');
@@ -44,7 +44,7 @@
     Oven.prototype.publishOptions = function() {
       global.option('-c', '--clean', 'cleans the project before running a command');
       global.option('-w', '--watch', 'watches for changes');
-      global.option('-b', '--compile', 'compiles the project (used with test)');
+      global.option('-b', '--build', 'builds the project (used with test)');
       global.option('-p', '--preview', 'display all of the commands that will be run (without running them!)');
       global.option('-v', '--verbose', 'display additional information');
       global.option('-s', '--silent', 'does not output messages to the console (unless errors occur)');
@@ -69,14 +69,14 @@
             return _this.clean(options);
           }
         ],
-        compile: [
+        build: [
           'Build library and tests', function(options) {
-            return _this.compile(options);
+            return _this.build(options);
           }
         ],
         watch: [
           'Watch library and tests', function(options) {
-            return _this.compile(_.defaults({
+            return _this.build(_.defaults({
               watch: true
             }, options));
           }
@@ -87,7 +87,7 @@
           }
         ],
         gitpush: [
-          'Cleans, compiles, tests and if successful, runs git commands to add, commit, and push the project', function(options) {
+          'Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project', function(options) {
             return _this.gitPush(options);
           }
         ]
@@ -147,7 +147,7 @@
     };
 
     Oven.prototype.clean = function(options, command_queue) {
-      var args, command, compile_directory, compile_queue, output_directory, output_names, owns_queue, pathed_compile_name, postinstall_queue, source_name, target, _i, _j, _k, _len, _len1, _len2, _ref, _ref1;
+      var args, build_directory, build_queue, command, output_directory, output_names, owns_queue, pathed_build_name, postinstall_queue, source_name, target, _i, _j, _k, _len, _len1, _len2, _ref, _ref1;
       if (options == null) {
         options = {};
       }
@@ -161,11 +161,11 @@
           }
         });
       }
-      compile_queue = new eb.command.Queue();
-      this.compile(_.defaults({
+      build_queue = new eb.command.Queue();
+      this.build(_.defaults({
         clean: false
-      }, options), compile_queue);
-      _ref = compile_queue.commands();
+      }, options), build_queue);
+      _ref = build_queue.commands();
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         command = _ref[_i];
         if (!(command instanceof eb.command.Coffee)) {
@@ -175,16 +175,16 @@
         output_names = command.targetNames();
         for (_j = 0, _len1 = output_names.length; _j < _len1; _j++) {
           source_name = output_names[_j];
-          compile_directory = eb.utils.resolvePath(output_directory, {
+          build_directory = eb.utils.resolvePath(output_directory, {
             cwd: path.dirname(source_name),
             root_dir: this.YAML_dir
           });
-          pathed_compile_name = "" + compile_directory + "/" + (eb.utils.builtName(path.basename(source_name)));
-          command_queue.push(new eb.command.Clean(["" + pathed_compile_name], {
+          pathed_build_name = "" + build_directory + "/" + (eb.utils.builtName(path.basename(source_name)));
+          command_queue.push(new eb.command.Clean(["" + pathed_build_name], {
             root_dir: this.YAML_dir
           }));
           if (command.isCompressed()) {
-            command_queue.push(new eb.command.Clean(["" + (eb.utils.compressedName(pathed_compile_name))], {
+            command_queue.push(new eb.command.Clean(["" + (eb.utils.compressedName(pathed_build_name))], {
               root_dir: this.YAML_dir
             }));
           }
@@ -226,7 +226,7 @@
       return this;
     };
 
-    Oven.prototype.compile = function(options, command_queue) {
+    Oven.prototype.build = function(options, command_queue) {
       var args, file, file_group, file_groups, owns_queue, set, set_name, set_options, _i, _j, _len, _len1, _ref, _ref1;
       if (options == null) {
         options = {};
@@ -240,7 +240,7 @@
       if (options.verbose) {
         command_queue.push({
           run: function(run_options, callback, queue) {
-            console.log("------------compile " + (options.preview ? 'started (PREVIEW)' : 'started') + "------------");
+            console.log("------------build " + (options.preview ? 'started (PREVIEW)' : 'started') + "------------");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
@@ -251,7 +251,7 @@
         if (_.contains(RESERVED_SETS, set_name)) {
           continue;
         }
-        set_options = eb.utils.extractSetOptions(set, 'compile', {
+        set_options = eb.utils.extractSetOptions(set, 'build', {
           directories: ['.'],
           files: ['**/*.coffee']
         });
@@ -294,7 +294,7 @@
       if (options.verbose) {
         command_queue.push({
           run: function(run_options, callback, queue) {
-            console.log("compile completed with " + (queue.errorCount()) + " error(s)");
+            console.log("build completed with " + (queue.errorCount()) + " error(s)");
             return typeof callback === "function" ? callback() : void 0;
           }
         });
@@ -312,8 +312,8 @@
       }
       owns_queue = !command_queue;
       command_queue || (command_queue = new eb.command.Queue());
-      if (options.compile || options.watch) {
-        this.compile(_.defaults({
+      if (options.build || options.watch) {
+        this.build(_.defaults({
           test: true
         }, options), command_queue);
       }
@@ -417,7 +417,7 @@
       command_queue || (command_queue = new eb.command.Queue());
       test_queue = new eb.command.Queue();
       command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'));
-      this.clean(options, test_queue).postinstall(options, test_queue).compile(options, test_queue).test(_.defaults({
+      this.clean(options, test_queue).postinstall(options, test_queue).build(options, test_queue).test(_.defaults({
         no_exit: true
       }, options), test_queue);
       test_queue.push({
