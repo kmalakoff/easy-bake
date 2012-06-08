@@ -1,2 +1,2 @@
 easybake = require('./.bin/easy-bake/easy-bake')
-(new easybake.Oven('easy-bake-config.yaml')).publishTasks({})
+(new easybake.Oven('easy-bake-config.yml')).publishTasks({})

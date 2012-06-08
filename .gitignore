@@ -2,3 +2,8 @@
 .DS_Store
 
 node_modules/*
+test/easy-bake_core/build/*
+test/sample_library/core.js
+test/sample_library/lib/*
+test/sample_library/test/test1/build*
+test/sample_library/test/test2/build*

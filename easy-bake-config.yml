@@ -23,7 +23,7 @@ tests:
   output: ./build
   bare: true
   directories:
-    - test/easy-bake_core
+    - test/core
   options:
     test:
       command: nodeunit

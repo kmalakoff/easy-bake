@@ -93,14 +93,14 @@ Include it in your Cakefile:
 
 ```
 easybake = require('easy-bake')
-(new easybake.Oven('easy-bake-config.yaml')).publishTasks()
+(new easybake.Oven('easy-bake-config.yml')).publishTasks()
 ```
 
 or if you want finer control:
 
 ```
 easybake = require('easy-bake')
-oven = (new easybake.Oven('easy-bake-config.yaml')).publishOptions()
+oven = (new easybake.Oven('easy-bake-config.yml')).publishOptions()
 
 task 'build', 'Build library and tests', (options) -> myBuildFunction(); oven.build(options)
 task 'postinstall', 'Called by npm after installing library', (options) -> myPostInstallFunction(); oven.postinstall(options)
