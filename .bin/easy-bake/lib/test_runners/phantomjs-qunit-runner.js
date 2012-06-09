@@ -39,6 +39,10 @@
               return;
             }
             clearInterval(interval);
+            if (stats.all <= 0) {
+              phantom.exit(-1);
+              return;
+            }
             code = stats.bad > 0 ? 1 : 0;
             if (!silent) {
               console.log("phantomjs-qunit-runner.js: exiting (" + code + ")");

@@ -14,9 +14,10 @@
     start = Date.now();
     page = require('webpage').create();
     page.onConsoleMessage = function(msg) {
-      if (msg.indexOf('warning') !== 0) {
-        return console.log(msg);
+      if (msg.indexOf('warning') === 0) {
+        continue;
       }
+      return console.log(msg);
     };
     page.open(page_filename, function(status) {
       var interval;
@@ -42,6 +43,10 @@
               return;
             }
             clearInterval(interval);
+            if (stats.totalCount <= 0) {
+              phantom.exit(-1);
+              return;
+            }
             code = stats.failedCount > 0 ? 1 : 0;
             if (!silent) {
               console.log("phantomjs-jasmine-runner.js: exiting (" + code + ")");

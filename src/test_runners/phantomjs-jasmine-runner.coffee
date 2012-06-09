@@ -12,9 +12,7 @@ try
 
   page = require('webpage').create()
 
-  page.onConsoleMessage = (msg) ->
-    continue if msg.indexOf('warning') is 0     # filter warnings
-    console.log(msg)
+  page.onConsoleMessage = (msg) -> console.log(msg) if(msg.indexOf('warning')!=0) # filter warnings
 
   page.open(page_filename, (status) ->
     if (status != 'success')
@@ -26,14 +24,17 @@ try
           console.error("Tests timed out")
           phantom.exit(124)
         else
-          # if there are still things to process on the Jasmine queue, we are not done
           stats = page.evaluate(->
             runner = jasmine.getEnv().currentRunner()
+            console.log('current runner');
+
             return if runner.queue.isRunning()
             return runner.results()
           )
           return if not stats # not done
           clearInterval(interval)
+
+          (phantom.exit(-1); return) if stats.totalCount <= 0 # nothing run
           code = if (stats.failedCount > 0) then 1 else 0
           console.log("phantomjs-jasmine-runner.js: exiting (#{code})") unless silent
           phantom.exit(code)

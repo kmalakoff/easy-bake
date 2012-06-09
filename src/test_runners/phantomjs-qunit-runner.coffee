@@ -27,8 +27,9 @@ try
           # if there are still things to process on the QUnit queue, we are not done
           stats = page.evaluate(-> return QUnit.config.stats if (QUnit.config.queue.length==0) )
           return if not stats # not done
-
           clearInterval(interval)
+
+          (phantom.exit(-1); return) if stats.all <= 0 # nothing run
           code = if (stats.bad > 0) then 1 else 0
           console.log("phantomjs-qunit-runner.js: exiting (#{code})") unless silent
           phantom.exit(code)
