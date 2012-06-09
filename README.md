@@ -70,16 +70,16 @@ tests:
 Project Configuration
 -----------------------
 
-Just include it as a development dependency to your package.json:
+It is best to preinstall a specific version of easy-bake in your package.json (preinstall so it is installed before dependent packages that also use it and a specific version until the yaml format is locked at a major release):
 
 ```
 "scripts": {
-  "postinstall": "node_modules/.bin/cake postinstall"
+  "preinstall": "npm install easy-bake@0.1.2",
+  "postinstall": "cake postinstall"
 },
 
 "devDependencies": {
-  "coffee-script": "latest",
-  "easy-bake": "0.1.2"
+  "coffee-script": "latest"
 },
 ```
 
@@ -121,8 +121,9 @@ If you are using TravisCI, you should add something like this to your project.js
 
 ```
 "scripts": {
-  "postinstall": "node_modules/.bin/cake postinstall",
-  "test": "node_modules/.bin/cake -c -b test"
+  "preinstall": "npm install easy-bake@0.1.2",
+  "postinstall": "cake postinstall",
+  "test": "cake -c -b test"
 },
 ```
 
@@ -181,7 +182,6 @@ Just include it as a development dependency to your package.json:
 ```
 "devDependencies": {
   "coffee-script": "latest",
-  "easy-bake": "0.1.2",
   "nodeunit": "latest"
 },
 ```

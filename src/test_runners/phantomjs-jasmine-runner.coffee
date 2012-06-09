@@ -12,7 +12,9 @@ try
 
   page = require('webpage').create()
 
-  page.onConsoleMessage = (msg) -> console.log(msg) if(msg.indexOf('warning')!=0) # filter warnings
+  page.onConsoleMessage = (msg) ->
+    continue if msg.indexOf('warning') is 0     # filter warnings
+    console.log(msg)
 
   page.open(page_filename, (status) ->
     if (status != 'success')
