@@ -35,7 +35,7 @@ lib_utils:
     - '**/*.coffee'
 
 tests:
-  output: ./build
+  output: build
   bare: true
   directories:
     - test/test1

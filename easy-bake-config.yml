@@ -15,12 +15,12 @@ lib_commands:
     - src/commands/commands.coffee
 
 lib_test_runners:
-  output: lib/test_runners
+  output: ../../lib/test_runners
   directories:
     - src/test_runners
 
 tests:
-  output: ./build
+  output: build
   bare: true
   directories:
     - test/core

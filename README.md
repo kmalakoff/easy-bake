@@ -50,12 +50,12 @@ library:
     - src/easy-bake.coffee
 
 lib_test_runners:
-  output: lib/test_runners
+  output: ../../lib/test_runners
   directories:
     - src/test_runners
 
 tests:
-  output: ./build
+  output: build
   bare: true
   directories:
     - test/easy-bake_core
@@ -64,6 +64,84 @@ tests:
       command: nodeunit
       files:
         - '**/*.js'
+```
+
+###Directories vs Files
+
+Because CoffeeScript will retain the file hierarchy if an output directory is given, easy-bake allows you to flatten the hierarchy or to preserve it using directories + files vs directories-only.
+
+For example, because directories are only specified in this case, the full directory structure will be preserved when the CoffeeScripts are compiled:
+
+```
+my_set_hierarchical:
+  output: ../js
+  directories: ['my_directory']
+```
+
+Whereas, by specifying the files, you can compile them all into the output directory:
+
+```
+my_set_flat:
+  output: ../js
+  directories: ['my_directory']
+  files: ['**/*.coffee']
+```
+
+So if the hierarchy is like:
+
+```
+- my_directory
+  - sub_directory
+    - file1.coffee
+  - app.coffee
+```
+
+The results would be as follows for my_set_hierarchical:
+
+```
+- js
+  - sub_directory
+    - file1.js
+  - app.js
+- my_directory
+  - sub_directory
+    - file1.coffee
+  - app.coffee
+```
+
+and for my_set_flat:
+
+```
+- js
+  - app.js
+  - file1.js
+- my_directory
+  - sub_directory
+    - file1.coffee
+  - app.coffee
+```
+
+###Relative Directories
+
+All output directories are relative to a set's directory.
+
+For example, the output directory in this example is resolved to be the same directory as the YAML root because 'src/test_runners' is two directories down the hierarchy:
+
+```
+lib_test_runners:
+  output: ../../lib/test_runners
+  directories:
+    - src/test_runners
+```
+
+Whereas, the output in this case will be in a new folder under 'test/easy-bake_core' (output to 'test/easy-bake_core/build'):
+
+```
+tests:
+  output: build
+  bare: true
+  directories:
+    - test/easy-bake_core
 ```
 
 

@@ -3,8 +3,8 @@ fs = require 'fs'
 path = require 'path'
 _ = require 'underscore'
 wrench = require 'wrench'
-globber = require 'glob-whatev'
 uglifyjs = require 'uglify-js'
+globber = require 'glob-whatev'
 
 ##############################
 # Commands
@@ -155,7 +155,6 @@ class eb.command.UglifyJS
   outputName: -> return if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
 
   run: (options={}, callback) ->
-    # command scoping is required because the test suite may not be installed globally
     scoped_command = 'node_modules/.bin/uglifyjs'
 
     # display
@@ -164,40 +163,40 @@ class eb.command.UglifyJS
       (callback?(0, @); return) if options.preview
 
     # execute
-    spawned = spawn scoped_command, @args, @command_options.cwd, eb.utils.extractCWD(@command_options)
-    spawned.stderr.on 'data', (data) ->
-      process.stderr.write data.toString()
-    spawned.stdout.on 'data', (data) ->
-      process.stderr.write data.toString()
-    spawned.on 'exit', (code) =>
-      @exit_code = code
-      if code is 0
-        timeLog("compressed #{eb.utils.relativePath(@outputName(), @command_options.cwd)}") unless options.silent
-      else
-        timeLog("failed to compress #{eb.utils.relativePath(@outputName(), @command_options.cwd)} .... error code: #{e.code}")
-      callback?(code, @)
+    try
+      src = fs.readFileSync(@args[2], 'utf8')
+      header = if ((header_index = src.indexOf('*/'))>0) then src.substr(0, header_index+2) else ''
+      ast = uglifyjs.parser.parse(src)
+      ast = uglifyjs.uglify.ast_mangle(ast)
+      ast = uglifyjs.uglify.ast_squeeze(ast)
+      src = header + uglifyjs.uglify.gen_code(ast) + ';'
+      fs.writeFileSync(@args[1], src, 'utf8')
+      timeLog("compressed #{eb.utils.relativePath(@outputName(), @command_options.cwd)}") unless options.silent
+      callback?(0, @)
+    catch e
+      timeLog("failed to minify #{eb.utils.relativePath(@outputName(), @command_options.cwd)} .... error code: #{e.code}")
+      callback?(e.code, @)
 
 class eb.command.RunTest
-  constructor: (@command, args=[], @command_options={}) ->
-    @args = eb.utils.resolveArguments(args, @command_options.cwd)
-    if @usingPhantomJS() and @args[1].search('file://') isnt 0
-      @args[1] = "file://#{@args[1]}"
+  constructor: (@command, @args=[], @command_options={}) ->
   usingPhantomJS: -> return (@command is 'phantomjs')
   fileName: -> return if @usingPhantomJS() then @args[1] else @args[0]
   exitCode: -> return @exit_code
 
   run: (options={}, callback) ->
     # command scoping is required because the test suite may not be installed globally
-    scoped_command = if @usingPhantomJS() then @command else "node_modules/.bin/#{@command}"
+    scoped_command = if @usingPhantomJS() then @command else path.join('node_modules/.bin', @command)
+    scoped_args = _.clone(@args)
+    if @usingPhantomJS() and @args[1].search('file://') isnt 0
+      scoped_args[1] = "file://#{eb.utils.resolvePath(@args[1], @command_options.cwd)}"
 
     # display
     if options.preview or options.verbose
-      display_args = if (@args.length == 4) then @args.slice(0, @args.length-1) else @args   # drop the silent argument
-      console.log("#{scoped_command} #{display_args.join(' ')}")
+      console.log("#{scoped_command} #{scoped_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
-    spawned = spawn scoped_command, eb.utils.relativeArguments(@args, @command_options.cwd), eb.utils.extractCWD(@command_options)
+    spawned = spawn scoped_command, @args
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
