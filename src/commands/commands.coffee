@@ -1,8 +1,16 @@
+{spawn} = require 'child_process'
+fs = require 'fs'
+path = require 'path'
+_ = require 'underscore'
+wrench = require 'wrench'
+globber = require 'glob-whatev'
+uglifyjs = require 'uglify-js'
+
 ##############################
 # Commands
 ##############################
 class eb.command.RunQueue
-  constructor: (@run_queue, @name) ->
+  constructor: (@run_queue, @name) -> @run_queue = new eb.command.Queue() unless @run_queue
   queue: -> return @run_queue
 
   run: (options={}, callback) ->
@@ -12,24 +20,17 @@ class eb.command.RunQueue
     # execute
     @run_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
 
-class eb.command.Command
+class eb.command.RunCommand
   constructor: (@command, @args=[], @command_options={}) ->
 
   run: (options={}, callback) ->
-    scoped_args = @args
-
-    # look up the sources in case they are inside node_modules
-    for index, arg of @args
-      try (scoped_args[index] = require.resolve(arg)) catch e
-
     # display
     if options.preview or options.verbose
-      display_args = _.map(scoped_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
-      console.log("#{if @command_options.cwd then (@command_options.cwd + ': ') else ''}#{@command} #{display_args.join(' ')}")
+      console.log("#{if @command_options.cwd then (@command_options.cwd + ': ') else ''}#{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
-    spawned = spawn @command, scoped_args, @command_options
+    spawned = spawn @command, @args, eb.utils.extractCWD(@command_options)
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
@@ -37,63 +38,100 @@ class eb.command.Command
     spawned.on 'exit', (code) ->
       callback?(code, @)
 
-class eb.command.Clean
-  constructor: (@args=[], @command_options={}) ->
-  target: -> @args[@args.length-1]
+class eb.command.Remove
+  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  target: -> return @args[@args.length-1]
 
   run: (options={}, callback) ->
     (callback?(0, @); return) unless path.existsSync(@target()) # nothing to delete
 
     # display
     if options.preview or options.verbose
-      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
-      console.log("rm #{display_args.join(' ')}")
+      console.log("rm #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
       (callback?(0, @); return) if options.preview
 
-    if @args[0]=='-r' then wrench.rmdirSyncRecursive(@args[1]) else fs.unlink(@args[0])
+    if @args[0]=='-r' then wrench.rmdirSyncRecursive(@target()) else fs.unlinkSync(@target())
+    timeLog("removed #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
+    callback?(0, @)
+
+class eb.command.Copy
+  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  source: -> return @args[@args.length-2]
+  target: -> return @args[@args.length-1]
+
+  run: (options={}, callback) ->
+    # display
+    if options.preview or options.verbose
+      console.log("cp #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
+      (callback?(0, @); return) if options.preview
+
+    # make the destination directory
+    try
+      target_dir = path.dirname(@target())
+      wrench.mkdirSyncRecursive(target_dir, 0o0777) unless path.existsSync(target_dir)
+    catch e
+      throw e if e.code isnt 'EEXIST'
+
+    # do the copy
+    if @args[0]=='-r' then wrench.copyDirSyncRecursive(@source(), @target()) else fs.writeFileSync(@target(), fs.readFileSync(@source(), 'utf8'), 'utf8')
+    timeLog("copied #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
     callback?(0, @)
 
 class eb.command.Coffee
-  constructor: (@args=[], @command_options={}) ->
-  targetDirectory: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
-  targetNames: -> return if ((index = _.indexOf(@args, '-j')) >= 0) then [@args[index+1]] else @args.slice(_.indexOf(@args, '-c')+1)
+  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  targetDirectory: -> return eb.utils.safePathNormalize(if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else '')
+  pathedTargets: ->
+    pathed_targets = []
+    output_directory = @targetDirectory()
+    output_names = if ((index = _.indexOf(@args, '-j')) >= 0) then [@args[index+1]] else @args.slice(_.indexOf(@args, '-c')+1)
+    for source_name in output_names
+      # files being compiled
+      if source_name.match(/\.js$/) or source_name.match(/\.coffee$/)
+        pathed_targets.push(eb.utils.safePathNormalize("#{output_directory}/#{eb.utils.builtName(path.basename(source_name))}"))
+
+      # directories being compiled
+      else
+        pathed_source_files = []
+        globber.glob("#{source_name}/**/*.coffee").forEach((pathed_file) -> pathed_source_files.push(pathed_file.replace(source_name, '')))
+        for pathed_source_file in pathed_source_files
+          pathed_targets.push(eb.utils.safePathNormalize("#{output_directory}#{eb.utils.builtName(pathed_source_file)}"))
+    return pathed_targets
+
   isCompressed: -> return @command_options.compress
   runsTests: -> return @command_options.test
 
   run: (options={}, callback) ->
     # display
     if options.preview or options.verbose
-      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
-      console.log("coffee #{display_args.join(' ')}")
+      console.log("coffee #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
       (callback?(0, @); return) if options.preview
 
-    # execute
-    spawned = spawn 'coffee', @args
+    spawned = spawn 'coffee', @args, eb.utils.extractCWD(@command_options)
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     notify = (code) =>
       output_directory = @targetDirectory()
-      output_names = @targetNames()
+      output_names = @pathedTargets()
 
       if @isCompressed() or (@runsTests() and @already_run)
         post_build_queue = new eb.command.Queue()
 
       for source_name in output_names
-        build_directory = eb.utils.resolvePath(output_directory, {cwd: path.dirname(source_name), root_dir: @command_options.root_dir})
+        build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name))
         pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
 
         if code is 0
-          timeLog("compiled #{pathed_build_name.replace("#{@command_options.root_dir}/", '')}") unless options.silent
+          timeLog("compiled #{eb.utils.relativePath(pathed_build_name, @targetDirectory())}") unless options.silent
         else
-          timeLog("failed to compile #{pathed_build_name.replace("#{@command_options.root_dir}/", '')} .... error code: #{code}")
+          timeLog("failed to compile #{eb.utils.relativePath(pathed_build_name, @targetDirectory())} .... error code: #{code}")
 
         # add to the compress queue
         if @isCompressed()
-          post_build_queue.push(new eb.command.UglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {root_dir: @command_options.root_dir}))
+          post_build_queue.push(new eb.command.UglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {cwd: @targetDirectory()}))
 
       # add the test command
       if @runsTests() and @already_run
-        post_build_queue.push(new eb.command.Command('cake', ['test'], {root_dir: @command_options.root_dir}))
+        post_build_queue.push(new eb.command.RunCommand('cake', ['test'], {cwd: @command_options.cwd}))
       @already_run = true
 
       # run the post build queue
@@ -103,16 +141,15 @@ class eb.command.Coffee
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
 
 class eb.command.UglifyJS
-  constructor: (@args=[], @command_options={}) ->
-  outputName: -> if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
+  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  outputName: -> return if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
 
   run: (options={}, callback) ->
     scoped_command = "node_modules/.bin/uglifyjs"
 
     # display
     if options.preview or options.verbose
-      display_args = _.map(@args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir))
-      console.log("#{scoped_command} #{display_args.join(' ')}")
+      console.log("#{scoped_command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
       (callback?(0, @); return) if options.preview
 
     # execute
@@ -124,39 +161,35 @@ class eb.command.UglifyJS
       ast = uglifyjs.uglify.ast_squeeze(ast)
       src = header + uglifyjs.uglify.gen_code(ast) + ';'
       fs.writeFileSync(@args[1], src, 'utf8')
-      timeLog("compressed #{@outputName().replace("#{@command_options.root_dir}/", '')}") unless options.silent
+      timeLog("compressed #{eb.utils.relativePath(@outputName(), @command_options.cwd)}") unless options.silent
       callback?(0, @)
     catch e
-      timeLog("failed to minify #{@outputName().replace("#{@command_options.root_dir}/", '')} .... error code: #{e.code}")
+      timeLog("failed to minify #{eb.utils.relativePath(@outputName(), @command_options.cwd)} .... error code: #{e.code}")
       callback?(e.code, @)
 
-class eb.command.Test
-  constructor: (@command, @args=[], @command_options={}) ->
+class eb.command.RunTest
+  constructor: (@command, args=[], @command_options={}) ->
+    @args = eb.utils.resolveArguments(args, @command_options.cwd)
+    if @usingPhantomJS() and @args[1].search('file://') isnt 0
+      @args[1] = "file://#{@args[1]}"
   usingPhantomJS: -> return (@command is 'phantomjs')
-  fileName: -> return eb.utils.relativePath((if @usingPhantomJS() then @args[1] else @args[0]), @command_options.root_dir)
+  fileName: -> return if @usingPhantomJS() then @args[1] else @args[0]
   exitCode: -> return @exit_code
 
   run: (options={}, callback) ->
     if @usingPhantomJS()
       scoped_command = @command
-      scoped_args = _.clone(@args)
-      scoped_args[1] = "file://#{@args[1]}"
     else
       scoped_command = "node_modules/.bin/#{@command}"
-      scoped_args = @args
 
     # display
     if options.preview or options.verbose
-      display_args = if (scoped_args.length == 4) then scoped_args.slice(0, scoped_args.length-1) else scoped_args   # drop the silent argument
-      display_args = _.map(display_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir)) unless @usingPhantomJS()
+      display_args = if (@args.length == 4) then @args.slice(0, @args.length-1) else @args   # drop the silent argument
       console.log("#{scoped_command} #{display_args.join(' ')}")
       (callback?(0, @); return) if options.preview
 
-    # make files relative
-    scoped_args = _.map(scoped_args, (arg) => return eb.utils.relativePath(arg, @command_options.root_dir)) unless @usingPhantomJS()
-
     # execute
-    spawned = spawn scoped_command, scoped_args
+    spawned = spawn scoped_command, eb.utils.relativeArguments(@args, @command_options.cwd), eb.utils.extractCWD(@command_options)
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
@@ -164,16 +197,17 @@ class eb.command.Test
     spawned.on 'exit', (code) =>
       @exit_code = code
       if code is 0
-        timeLog("tests passed #{@fileName()}") unless options.silent
+        timeLog("tests passed #{eb.utils.relativePath(@fileName(), @command_options.cwd)}") unless options.silent
       else
-        timeLog("tests failed #{@fileName()} (exit code: #{code})")
+        timeLog("tests failed #{eb.utils.relativePath(@fileName(), @command_options.cwd)} (exit code: #{code})")
       callback?(code, @)
 
 class eb.command.GitPush
+  constructor: (@command_options={}) ->
   run: (options={}, callback) ->
     git_queue = new eb.command.Queue()
-    git_queue.push(new eb.command.Command('git', ['add', '.'], {root_dir: @YAML_dir}))
-    git_queue.push(new eb.command.Command('git', ['rm', '$(git ls-files --deleted)'], {root_dir: @YAML_dir}))
-    git_queue.push(new eb.command.Command('git', ['commit'], {root_dir: @YAML_dir}))
-    git_queue.push(new eb.command.Command('git', ['push'], {root_dir: @YAML_dir}))
+    git_queue.push(new eb.command.RunCommand('git', ['add', '.'], @command_options))
+    git_queue.push(new eb.command.RunCommand('git', ['rm', '$(git ls-files --deleted)'], @command_options))
+    git_queue.push(new eb.command.RunCommand('git', ['commit'], @command_options))
+    git_queue.push(new eb.command.RunCommand('git', ['push'], @command_options))
     git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))

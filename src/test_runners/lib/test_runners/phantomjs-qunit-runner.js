@@ -31,25 +31,21 @@
             return phantom.exit(124);
           } else {
             stats = page.evaluate(function() {
-              var runner;
-              runner = jasmine.getEnv().currentRunner();
-              console.log('current runner');
-              if (runner.queue.isRunning()) {
-                return;
+              if (QUnit.config.queue.length === 0) {
+                return QUnit.config.stats;
               }
-              return runner.results();
             });
             if (!stats) {
               return;
             }
             clearInterval(interval);
-            if (stats.totalCount <= 0) {
+            if (stats.all <= 0) {
               phantom.exit(-1);
               return;
             }
-            code = stats.failedCount > 0 ? 1 : 0;
+            code = stats.bad > 0 ? 1 : 0;
             if (!silent) {
-              console.log("phantomjs-jasmine-runner.js: exiting (" + code + ")");
+              console.log("phantomjs-qunit-runner.js: exiting (" + code + ")");
             }
             return phantom.exit(code);
           }
@@ -57,7 +53,7 @@
       }
     });
   } catch (e) {
-    console.error("Jasmine exception: " + e);
+    console.error("QUnit exception: " + e);
     phantom.exit(1);
   }
 

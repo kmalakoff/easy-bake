@@ -10,13 +10,13 @@
 
   path = require('path');
 
-  yaml = require('js-yaml');
-
-  _ = require('underscore');
-
   if (!global.option) {
     require('coffee-script/lib/coffee-script/cake');
   }
+
+  yaml = require('js-yaml');
+
+  _ = require('underscore');
 
   RESERVED_SETS = ['postinstall'];
 
@@ -108,13 +108,12 @@
       return this;
     };
 
-    Oven.prototype.postinstall = function(options, command_queue) {
-      var command_info, name, owns_queue, set, set_name, _ref;
+    Oven.prototype.postinstall = function(options, callback) {
+      var command_info, command_queue, name, set, set_name, _ref;
       if (options == null) {
         options = {};
       }
-      owns_queue = !command_queue;
-      command_queue || (command_queue = new eb.command.Queue());
+      command_queue = options.queue ? options.queue : new eb.command.Queue();
       _ref = this.YAML;
       for (set_name in _ref) {
         set = _ref[set_name];
@@ -127,9 +126,15 @@
             console.log("postinstall " + set_name + "." + name + " is not a command");
             continue;
           }
-          command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({
-            root_dir: this.YAML_dir
-          }, command_info.options)));
+          if (command_info.command === 'cp') {
+            command_queue.push(new eb.command.Copy(command_info.args, {
+              cwd: this.YAML_dir
+            }));
+          } else {
+            command_queue.push(new eb.command.RunCommand(command_info.command, command_info.args, _.defaults({
+              cwd: this.YAML_dir
+            }, command_info.options)));
+          }
         }
       }
       if (options.verbose) {
@@ -140,19 +145,18 @@
           }
         });
       }
-      if (owns_queue) {
-        command_queue.run(options);
+      if (!options.queue) {
+        command_queue.run(options, callback);
       }
       return this;
     };
 
-    Oven.prototype.clean = function(options, command_queue) {
-      var args, build_directory, build_queue, command, output_directory, output_names, owns_queue, pathed_build_name, postinstall_queue, source_name, target, _i, _j, _k, _len, _len1, _len2, _ref, _ref1;
+    Oven.prototype.clean = function(options, callback) {
+      var args, build_queue, command, command_queue, output_directory, pathed_build_name, pathed_targets, postinstall_queue, _i, _j, _k, _len, _len1, _len2, _ref, _ref1;
       if (options == null) {
         options = {};
       }
-      owns_queue = !command_queue;
-      command_queue || (command_queue = new eb.command.Queue());
+      command_queue = options.queue ? options.queue : new eb.command.Queue();
       if (options.verbose) {
         command_queue.push({
           run: function(run_options, callback, queue) {
@@ -163,8 +167,9 @@
       }
       build_queue = new eb.command.Queue();
       this.build(_.defaults({
-        clean: false
-      }, options), build_queue);
+        clean: false,
+        queue: build_queue
+      }, options));
       _ref = build_queue.commands();
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         command = _ref[_i];
@@ -172,20 +177,15 @@
           continue;
         }
         output_directory = command.targetDirectory();
-        output_names = command.targetNames();
-        for (_j = 0, _len1 = output_names.length; _j < _len1; _j++) {
-          source_name = output_names[_j];
-          build_directory = eb.utils.resolvePath(output_directory, {
-            cwd: path.dirname(source_name),
-            root_dir: this.YAML_dir
-          });
-          pathed_build_name = "" + build_directory + "/" + (eb.utils.builtName(path.basename(source_name)));
-          command_queue.push(new eb.command.Clean(["" + pathed_build_name], {
-            root_dir: this.YAML_dir
+        pathed_targets = command.pathedTargets();
+        for (_j = 0, _len1 = pathed_targets.length; _j < _len1; _j++) {
+          pathed_build_name = pathed_targets[_j];
+          command_queue.push(new eb.command.Remove(["" + pathed_build_name], {
+            cwd: this.YAML_dir
           }));
           if (command.isCompressed()) {
-            command_queue.push(new eb.command.Clean(["" + (eb.utils.compressedName(pathed_build_name))], {
-              root_dir: this.YAML_dir
+            command_queue.push(new eb.command.Remove(["" + (eb.utils.compressedName(pathed_build_name))], {
+              cwd: this.YAML_dir
             }));
           }
         }
@@ -197,18 +197,19 @@
       _ref1 = postinstall_queue.commands();
       for (_k = 0, _len2 = _ref1.length; _k < _len2; _k++) {
         command = _ref1[_k];
-        if (!(command instanceof eb.command.Command)) {
+        if (!(command instanceof eb.command.RunCommand)) {
           continue;
         }
         if (command.command === 'cp') {
-          target = "" + this.YAML_dir + "/" + command.args[1];
           args = [];
-          if (!path.basename(target)) {
+          if (command.args[0] === '-r') {
             args.push('-r');
+            args.push(path.join(this.YAML_dir, command.args[2]));
+          } else {
+            args.push(path.join(this.YAML_dir, command.args[1]));
           }
-          args.push(target);
-          command_queue.push(new eb.command.Clean(args, {
-            root_dir: this.YAML_dir
+          command_queue.push(new eb.command.Remove(args, {
+            cwd: this.YAML_dir
           }));
         }
       }
@@ -220,21 +221,22 @@
           }
         });
       }
-      if (owns_queue) {
-        command_queue.run(options);
+      if (!options.queue) {
+        command_queue.run(options, callback);
       }
       return this;
     };
 
-    Oven.prototype.build = function(options, command_queue) {
-      var args, file, file_group, file_groups, owns_queue, set, set_name, set_options, _i, _j, _len, _len1, _ref, _ref1;
+    Oven.prototype.build = function(options, callback) {
+      var args, command_queue, file_group, file_groups, set, set_name, set_options, _i, _len, _ref;
       if (options == null) {
         options = {};
       }
-      owns_queue = !command_queue;
-      command_queue || (command_queue = new eb.command.Queue());
+      command_queue = options.queue ? options.queue : new eb.command.Queue();
       if (options.clean) {
-        this.clean(options, command_queue);
+        this.clean(_.defaults({
+          queue: command_queue
+        }, options));
       }
       this.postinstall(options, command_queue);
       if (options.verbose) {
@@ -251,10 +253,7 @@
         if (_.contains(RESERVED_SETS, set_name)) {
           continue;
         }
-        set_options = eb.utils.extractSetOptions(set, 'build', {
-          directories: ['.'],
-          files: ['**/*.coffee']
-        });
+        set_options = eb.utils.extractSetOptions(set, 'build');
         file_groups = eb.utils.getOptionsFileGroups(set_options, this.YAML_dir, options);
         for (_i = 0, _len = file_groups.length; _i < _len; _i++) {
           file_group = file_groups[_i];
@@ -271,21 +270,20 @@
           }
           args.push('-o');
           if (set_options.output) {
-            args.push(eb.utils.resolvePath(set_options.output, {
-              cwd: file_group.directory,
-              root_dir: this.YAML_dir
-            }));
+            args.push(set_options.output);
           } else {
             args.push(this.YAML_dir);
           }
           args.push('-c');
-          _ref1 = file_group.files;
-          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-            file = _ref1[_j];
-            args.push(file);
+          if (file_group.files) {
+            args = args.concat(_.map(file_group.files, function(file) {
+              return path.join(file_group.directory, file);
+            }));
+          } else {
+            args.push(file_group.directory);
           }
           command_queue.push(new eb.command.Coffee(args, {
-            root_dir: this.YAML_dir,
+            cwd: file_group.directory,
             compress: set_options.compress,
             test: options.test
           }));
@@ -299,23 +297,24 @@
           }
         });
       }
-      if (owns_queue) {
-        command_queue.run(options);
+      if (!options.queue) {
+        command_queue.run(options, callback);
       }
       return this;
     };
 
-    Oven.prototype.test = function(options, command_queue) {
-      var args, easy_bake_runner_used, file, file_group, file_groups, length_base, owns_queue, set, set_name, set_options, test_queue, _i, _j, _len, _len1, _ref, _ref1;
+    Oven.prototype.test = function(options, callback) {
+      var args, command_queue, easy_bake_runner_used, file, file_group, file_groups, length_base, set, set_name, set_options, test_queue, _i, _j, _len, _len1, _ref, _ref1,
+        _this = this;
       if (options == null) {
         options = {};
       }
-      owns_queue = !command_queue;
-      command_queue || (command_queue = new eb.command.Queue());
+      command_queue = options.queue ? options.queue : new eb.command.Queue();
       if (options.build || options.watch) {
         this.build(_.defaults({
-          test: true
-        }, options), command_queue);
+          test: true,
+          queue: command_queue
+        }, options));
       }
       test_queue = new eb.command.Queue();
       command_queue.push(new eb.command.RunQueue(test_queue, 'tests'));
@@ -333,10 +332,7 @@
         if (_.contains(RESERVED_SETS, set_name) || !(set.options && set.options.hasOwnProperty('test'))) {
           continue;
         }
-        set_options = eb.utils.extractSetOptions(set, 'test', {
-          directories: ['.'],
-          files: ['**/*.html']
-        });
+        set_options = eb.utils.extractSetOptions(set, 'test');
         if (set_options.runner && !path.existsSync(set_options.runner)) {
           set_options.runner = "" + RUNNERS_ROOT + "/" + set_options.runner;
           easy_bake_runner_used = true;
@@ -344,6 +340,9 @@
         file_groups = eb.utils.getOptionsFileGroups(set_options, this.YAML_dir, options);
         for (_i = 0, _len = file_groups.length; _i < _len; _i++) {
           file_group = file_groups[_i];
+          if (!file_group.files) {
+            throw "missing files for test in set: " + set_name;
+          }
           _ref1 = file_group.files;
           for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
             file = _ref1[_j];
@@ -351,10 +350,7 @@
             if (set_options.runner) {
               args.push(set_options.runner);
             }
-            args.push(eb.utils.resolvePath(file, {
-              cwd: file_group.directory,
-              root_dir: this.YAML_dir
-            }));
+            args.push(path.join(file_group.directory, file));
             if (set_options.args) {
               args = args.concat(set_options.args);
             }
@@ -367,8 +363,8 @@
                 args.push(true);
               }
             }
-            test_queue.push(new eb.command.Test(set_options.command, args, {
-              root_dir: this.YAML_dir
+            test_queue.push(new eb.command.RunTest(set_options.command, args, {
+              cwd: this.YAML_dir
             }));
           }
         }
@@ -383,11 +379,11 @@
               _ref2 = test_queue.commands();
               for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
                 command = _ref2[_k];
-                if (!(command instanceof eb.command.Test)) {
+                if (!(command instanceof eb.command.RunTest)) {
                   continue;
                 }
                 total_error_count += command.exitCode() ? 1 : 0;
-                console.log("" + (command.exitCode() ? '✖' : '✔') + " " + (command.fileName()) + (command.exitCode() ? ' (exit code: ' + command.exitCode() + ')' : ''));
+                console.log("" + (command.exitCode() ? '✖' : '✔') + " " + (eb.utils.relativePath(command.fileName(), _this.YAML_dir)) + (command.exitCode() ? ' (exit code: ' + command.exitCode() + ')' : ''));
               }
               console.log("--------------------------------------");
               console.log(total_error_count ? "All tests ran with with " + total_error_count + " error(s)" : "All tests ran successfully!");
@@ -402,24 +398,26 @@
           }
         });
       }
-      if (owns_queue) {
-        command_queue.run(options);
+      if (!options.queue) {
+        command_queue.run(options, callback);
       }
       return this;
     };
 
-    Oven.prototype.gitPush = function(options, command_queue) {
-      var owns_queue, test_queue;
+    Oven.prototype.gitPush = function(options, callback) {
+      var chain_options, command_queue, test_queue;
       if (options == null) {
         options = {};
       }
-      owns_queue = !command_queue;
-      command_queue || (command_queue = new eb.command.Queue());
+      command_queue = options.queue ? options.queue : new eb.command.Queue();
       test_queue = new eb.command.Queue();
       command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'));
-      this.clean(options, test_queue).postinstall(options, test_queue).build(options, test_queue).test(_.defaults({
+      chain_options = _.defaults({
+        queue: test_queue
+      }, options);
+      this.clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({
         no_exit: true
-      }, options), test_queue);
+      }, chain_options));
       test_queue.push({
         run: function(run_options, callback, queue) {
           var git_command;
@@ -432,7 +430,9 @@
               return;
             }
           }
-          git_command = new eb.command.GitPush();
+          git_command = new eb.command.GitPush({
+            cwd: this.YAML_dir
+          });
           return git_command.run(options, function(code) {
             if (!options.verbose) {
               console.log("gitpush completed with " + code + " error(s)");
@@ -441,8 +441,8 @@
           });
         }
       });
-      if (owns_queue) {
-        command_queue.run(options);
+      if (!options.queue) {
+        command_queue.run(options, callback);
       }
       return this;
     };

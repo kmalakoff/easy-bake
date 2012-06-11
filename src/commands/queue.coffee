@@ -1,10 +1,3 @@
-{spawn} = require 'child_process'
-fs = require 'fs'
-path = require 'path'
-_ = require 'underscore'
-wrench = require 'wrench'
-uglifyjs = require 'uglify-js'
-
 eb = {} unless !!eb; @eb = {} unless !!@eb
 eb.utils = require './easy-bake-utils'
 
@@ -43,7 +36,7 @@ class eb.command.Queue
       @errors.push({code: code, task: task}) if (code isnt 0) and (arguments.length isnt 0)
 
       # next or done
-      if (++current_index < @commands_queue.length) then @commands_queue[current_index].run(run_options, next, @) else done()
+      if (++current_index < @commands_queue.length) then@commands_queue[current_index].run(run_options, next, @) else done()
 
     # run or done
     if @commands_queue.length then @commands_queue[current_index].run(run_options, next, @) else done()

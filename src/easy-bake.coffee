@@ -2,9 +2,9 @@
 {spawn} = require 'child_process'
 fs = require 'fs'
 path = require 'path'
+require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
 yaml = require 'js-yaml'
 _ = require 'underscore'
-require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
 
 RESERVED_SETS = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
@@ -55,8 +55,8 @@ class eb.Oven
       global.task.apply(null, [task_name].concat(args))
     @
 
-  postinstall: (options={}, command_queue) ->
-    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+  postinstall: (options={}, callback) ->
+    command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # collect tests to run
     for set_name, set of @YAML
@@ -68,18 +68,21 @@ class eb.Oven
         (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
 
         # add the command
-        command_queue.push(new eb.command.Command(command_info.command, command_info.args, _.defaults({root_dir: @YAML_dir}, command_info.options)))
+        if command_info.command is 'cp'
+          command_queue.push(new eb.command.Copy(command_info.args, {cwd: @YAML_dir}))
+        else
+          command_queue.push(new eb.command.RunCommand(command_info.command, command_info.args, _.defaults({cwd: @YAML_dir}, command_info.options)))
 
     # add footer
     if options.verbose
       command_queue.push({run: (run_options, callback, queue) -> console.log("postinstall completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    command_queue.run(options) if owns_queue
+    command_queue.run(options, callback) unless options.queue
     @
 
-  clean: (options={}, command_queue) ->
-    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+  clean: (options={}, callback) ->
+    command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # add header
     if options.verbose
@@ -90,20 +93,17 @@ class eb.Oven
     ###############################
     # get the build commands
     build_queue = new eb.command.Queue()
-    @build(_.defaults({clean: false}, options), build_queue)
+    @build(_.defaults({clean: false, queue: build_queue}, options))
 
     for command in build_queue.commands()
       continue unless command instanceof eb.command.Coffee
 
       output_directory = command.targetDirectory()
-      output_names = command.targetNames()
-      for source_name in output_names
-        build_directory = eb.utils.resolvePath(output_directory, {cwd: path.dirname(source_name), root_dir: @YAML_dir})
-        pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
-
+      pathed_targets = command.pathedTargets()
+      for pathed_build_name in pathed_targets
         # add the command
-        command_queue.push(new eb.command.Clean(["#{pathed_build_name}"], {root_dir: @YAML_dir}))
-        command_queue.push(new eb.command.Clean(["#{eb.utils.compressedName(pathed_build_name)}"], {root_dir: @YAML_dir})) if command.isCompressed()
+        command_queue.push(new eb.command.Remove(["#{pathed_build_name}"], {cwd: @YAML_dir}))
+        command_queue.push(new eb.command.Remove(["#{eb.utils.compressedName(pathed_build_name)}"], {cwd: @YAML_dir})) if command.isCompressed()
 
     ###############################
     # cake postinstall
@@ -113,31 +113,33 @@ class eb.Oven
     @postinstall(_.defaults({clean: false}, options), postinstall_queue)
 
     for command in postinstall_queue.commands()
-      continue unless command instanceof eb.command.Command
+      continue unless command instanceof eb.command.RunCommand
 
       # undo the copy
       if command.command is 'cp'
-        target = "#{@YAML_dir}/#{command.args[1]}"
         args = []
-        args.push('-r') unless path.basename(target)
-        args.push(target)
+        if command.args[0] is '-r'
+          args.push('-r')
+          args.push(path.join(@YAML_dir, command.args[2]))
+        else
+          args.push(path.join(@YAML_dir, command.args[1]))
 
         # add the command
-        command_queue.push(new eb.command.Clean(args, {root_dir: @YAML_dir}))
+        command_queue.push(new eb.command.Remove(args, {cwd: @YAML_dir}))
 
     # add footer
     if options.verbose
       command_queue.push({run: (run_options, callback, queue) -> console.log("clean completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    command_queue.run(options) if owns_queue
+    command_queue.run(options, callback) unless options.queue
     @
 
-  build: (options={}, command_queue) ->
-    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+  build: (options={}, callback) ->
+    command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # add the clean commands
-    @clean(options, command_queue) if options.clean
+    @clean(_.defaults({queue: command_queue}, options)) if options.clean
 
     # add the postinstall commands
     @postinstall(options, command_queue)
@@ -150,10 +152,7 @@ class eb.Oven
     for set_name, set of @YAML
       continue if _.contains(RESERVED_SETS, set_name)
 
-      set_options = eb.utils.extractSetOptions(set, 'build', {
-        directories: ['.']
-        files: ['**/*.coffee']
-      })
+      set_options = eb.utils.extractSetOptions(set, 'build')
 
       file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir, options)
       for file_group in file_groups
@@ -164,29 +163,29 @@ class eb.Oven
           args.push('-j')
           args.push(set_options.join)
         args.push('-o')
-        if set_options.output
-          args.push(eb.utils.resolvePath(set_options.output, {cwd: file_group.directory, root_dir: @YAML_dir}))
-        else
-          args.push(@YAML_dir)
+        if set_options.output then args.push(set_options.output) else args.push(@YAML_dir)
         args.push('-c')
-        args.push(file) for file in file_group.files
+        if file_group.files
+          args = args.concat(_.map(file_group.files, (file) -> return path.join(file_group.directory, file)))
+        else
+          args.push(file_group.directory)
 
         # add the command
-        command_queue.push(new eb.command.Coffee(args, {root_dir: @YAML_dir, compress: set_options.compress, test: options.test}))
+        command_queue.push(new eb.command.Coffee(args, {cwd: file_group.directory, compress: set_options.compress, test: options.test}))
 
     # add footer
     if options.verbose
       command_queue.push({run: (run_options, callback, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
 
     # run
-    command_queue.run(options) if owns_queue
+    command_queue.run(options, callback) unless options.queue
     @
 
-  test: (options={}, command_queue) ->
-    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+  test: (options={}, callback) ->
+    command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # add the build commands (will add clean if specified since 'clean' would be in the options)
-    @build(_.defaults({test: true}, options), command_queue)  if options.build or options.watch
+    @build(_.defaults({test: true, queue: command_queue}, options))  if options.build or options.watch
 
     # create a new queue for the tests so we can get a group result
     test_queue = new eb.command.Queue()
@@ -200,10 +199,7 @@ class eb.Oven
     for set_name, set of @YAML
       continue if _.contains(RESERVED_SETS, set_name) or not (set.options and set.options.hasOwnProperty('test'))
 
-      set_options = eb.utils.extractSetOptions(set, 'test', {
-        directories: ['.']
-        files: ['**/*.html']
-      })
+      set_options = eb.utils.extractSetOptions(set, 'test')
 
       # lookup the default runner
       if set_options.runner and not path.existsSync(set_options.runner)
@@ -212,10 +208,12 @@ class eb.Oven
 
       file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir, options)
       for file_group in file_groups
+        throw "missing files for test in set: #{set_name}" unless file_group.files
+
         for file in file_group.files
           args = []
           args.push(set_options.runner) if set_options.runner
-          args.push(eb.utils.resolvePath(file, {cwd: file_group.directory, root_dir: @YAML_dir}))
+          args.push(path.join(file_group.directory, file))
           args = args.concat(set_options.args) if set_options.args
           if easy_bake_runner_used
             length_base = if set_options.runner then 2 else 1
@@ -223,18 +221,18 @@ class eb.Oven
             args.push(true) if args.length < (length_base + 2)
 
           # add the command
-          test_queue.push(new eb.command.Test(set_options.command, args, {root_dir: @YAML_dir}))
+          test_queue.push(new eb.command.RunTest(set_options.command, args, {cwd: @YAML_dir}))
 
     # add footer
     unless options.preview
-      test_queue.push({run: (run_options, callback, queue) ->
+      test_queue.push({run: (run_options, callback, queue) =>
         unless (options.preview or options.verbose)
           total_error_count = 0
           console.log("\n-------------GROUP TEST RESULTS--------")
           for command in test_queue.commands()
-            continue unless (command instanceof eb.command.Test)
+            continue unless (command instanceof eb.command.RunTest)
             total_error_count += if command.exitCode() then 1 else 0
-            console.log("#{if command.exitCode() then '✖' else '✔'} #{command.fileName()}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
+            console.log("#{if command.exitCode() then '✖' else '✔'} #{eb.utils.relativePath(command.fileName(), @YAML_dir)}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
           console.log("--------------------------------------")
           console.log(if total_error_count then "All tests ran with with #{total_error_count} error(s)" else "All tests ran successfully!")
           console.log("--------------------------------------")
@@ -247,17 +245,18 @@ class eb.Oven
       })
 
     # run
-    command_queue.run(options) if owns_queue
+    command_queue.run(options, callback) unless options.queue
     @
 
-  gitPush: (options={}, command_queue) ->
-    owns_queue = !command_queue; command_queue or= new eb.command.Queue()
+  gitPush: (options={}, callback) ->
+    command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     test_queue = new eb.command.Queue()
     command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'))
 
     # build a chain of commands
-    @clean(options, test_queue).postinstall(options, test_queue).build(options, test_queue).test(_.defaults({no_exit: true}, options), test_queue)
+    chain_options = _.defaults({queue: test_queue}, options)
+    @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
     test_queue.push({run: (run_options, callback, queue) ->
 
       # don't run because the tests weren't successful
@@ -266,7 +265,7 @@ class eb.Oven
           console.log("gitpush aborted due to #{queue.errorCount()} error(s)")
           callback?(queue.errorCount()); return
 
-      git_command = new eb.command.GitPush()
+      git_command = new eb.command.GitPush({cwd: @YAML_dir})
       git_command.run(options, (code) ->
         console.log("gitpush completed with #{code} error(s)") unless options.verbose
         callback?(code)
@@ -274,5 +273,5 @@ class eb.Oven
     })
 
     # run
-    command_queue.run(options) if owns_queue
+    command_queue.run(options, callback) unless options.queue
     @

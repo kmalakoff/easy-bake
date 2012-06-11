@@ -20,53 +20,113 @@ eb.utils.extractSetOptions = (set, mode, defaults) ->
   _.defaults(set_options, defaults) if defaults
   return set_options
 
-eb.utils.getOptionsFileGroups = (set_options, root_dir, options) ->
+eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   file_groups = []
+  directories = if set_options.hasOwnProperty('directories') then set_options.directories else (if set_options.files then [cwd] else null)
+  return file_groups unless directories # nothing to search
 
-  directories = if set_options.hasOwnProperty('directories') then set_options.directories else ['.']
-  files = if set_options.hasOwnProperty('files') then set_options.files else ['**/*']
+  files = if set_options.hasOwnProperty('files') then set_options.files else null
   no_files_ok = if set_options.hasOwnProperty('no_files_ok') then set_options.no_files_ok
 
   # build the list of files per directory if there are any matching files
-  for directory in directories
+  for unpathed_dir in directories
+    directory = eb.utils.resolvePath(unpathed_dir, cwd)
     unless path.existsSync(directory)
       console.log("warning: directory is missing #{directory}") # unless options.preview
       continue
 
-    directory = fs.realpathSync(directory) # resolve the real path
+    directory = fs.realpathSync(directory) # resolve the real target
+    rel_directory = directory.replace("#{cwd}/", '')
 
-    pathed_files = []
-    _.each(files, (rel_file) ->
-      count = pathed_files.length
-      globber.glob("#{directory}/#{rel_file}").forEach((pathed_file) -> pathed_files.push(pathed_file))
-      if count == pathed_files.length
-        rel_directory = directory.replace("#{root_dir}/", '')
-        if not no_files_ok or not _.contains(no_files_ok, rel_directory)
-          console.log("warning: file not found #{directory}/#{rel_file}. If you are previewing a test, build your project before previewing.") # unless options.preview
-    )
-    continue if not pathed_files.length
-    file_groups.push(directory: directory, files:pathed_files)
+    # directories only
+    (file_groups.push({directory: directory, files:null}); continue) if not files
+
+    target_files = []
+    for rel_file in files
+      found_files = []
+      search_query = path.join(directory.replace(path.dirname(rel_file), ''), rel_file)
+      globber.glob(search_query).forEach((target_file) -> found_files.push(target_file))
+
+      target_files = target_files.concat(found_files)  # add these found files
+      continue if found_files.length # something found
+      if not no_files_ok or not _.contains(no_files_ok, rel_directory)
+        console.log("warning: file not found #{search_query}. If you are previewing a test, build your project before previewing.") # unless options.preview
+
+    # nothing found
+    continue if not target_files.length
+
+    # add all the files with relative paths to the directory
+    directory_slashed = "#{directory}/"
+    file_groups.push({directory: directory, files: _.map(target_files, (target_file) -> return target_file.replace(directory_slashed, ''))})
 
   return file_groups
 
-eb.utils.relativePath = (target, root_dir) ->
-  relative_target = target.replace(root_dir, '')
-  return if not relative_target.length then '.' else (if relative_target[0]=='/' then relative_target.substr(1) else relative_target)
+eb.utils.relativePath = (target, cwd) ->
+  return target if not cwd or target.search(cwd) isnt 0
+  relative_path = target.substr(cwd.length)
+  relative_path = relative_path.substr(1) if relative_path[0] is '/'
+  return if relative_path.length then relative_path else '.'
 
-eb.utils.resolvePath = (target, options) ->
-  if (target.match(/^\.\//))
-    stripped_target = target.substr(2)
-    return if target == './' then options.cwd else "#{options.cwd}/#{stripped_target}"
-  else if (target == '.')
-    stripped_target = target.substr(1)
-    return "#{options.cwd}/#{stripped_target}"
-  else if (target[0]=='/')
-    return target
-  else if (target.match(/^\{root\}/))
-    stripped_target = target.substr(6)
-    return if target == '{root}' then options.root_dir else "#{options.root_dir}/#{stripped_target}"
+eb.utils.extractCWD = (options={}) ->
+  return if options.cwd then {cwd: options.cwd} else {}
+
+eb.utils.runInExecDir = (fn, cwd) ->
+  if cwd
+    original_dirname = fs.realpathSync('.')
+    process.chdir(cwd)
+    result = fn()
+    process.chdir(original_dirname)
   else
-    return "#{options.root_dir}/#{target.replace(options.root_dir, '')}"
+    return fn()
+
+eb.utils.safePathNormalize = (target, cwd) ->
+  return target if (target.substr(0, process.env.HOME.length) is process.env.HOME)      # already resolved
+  return target if cwd and (target.substr(0, cwd.length) is cwd)                        # already resolved
+
+  normalized_target = target
+  eb.utils.runInExecDir((->
+    try (normalized_target = path.normalize(target)) catch e
+  ), cwd)
+  return normalized_target
+
+eb.utils.safeRequireResolve = (target, cwd) ->
+  return target if (target.substr(0, process.env.HOME.length) is process.env.HOME)      # already resolved
+  return target if cwd and (target.substr(0, cwd.length) is cwd)                        # already resolved
+
+  resolved_target = target
+  eb.utils.runInExecDir((->
+    try (resolved_target = require.resolve(target)) catch e
+  ), cwd)
+  return resolved_target
+
+eb.utils.resolveArguments = (args, cwd) ->
+  return _.map(args, (arg) ->
+    return arg if arg[0] is '-' or not _.isString(arg)  # skip options and non-string arguments
+    return eb.utils.resolvePath(arg, cwd)
+  )
+
+eb.utils.relativeArguments = (args, cwd) ->
+  return _.map(args, (arg) => return eb.utils.relativePath(arg, cwd))
+
+eb.utils.resolvePath = (target, cwd) ->
+  target = eb.utils.safeRequireResolve(target, cwd)
+  return target if (target.substr(0, process.env.HOME.length) is process.env.HOME)      # already resolved
+  return target if cwd and (target.substr(0, cwd.length) is cwd)                        # already resolved
+
+  if target[0] is '.'
+    # check that next characters are . or /, but not characters indicating a hidden directory
+    (next_char = char; break if char isnt '.' and char isnt '/') for char in target
+    if next_char is '.' or '/'
+      raw_target = path.join((if cwd then cwd else cwd), target)
+    else
+      raw_target = path.join(cwd, target)
+  else if target[0] is '~'
+    raw_target = target.replace(/^~/, process.env.HOME)
+  else if cwd
+    raw_target = path.join(cwd, target)
+  else
+    raw_target = target
+  return path.normalize(raw_target)
 
 eb.utils.builtName = (output_name) -> return output_name.replace(/\.coffee$/, '.js')
 eb.utils.compressedName = (output_name) -> return output_name.replace(/\.js$/, '.min.js')
