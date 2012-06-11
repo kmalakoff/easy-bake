@@ -100,8 +100,8 @@
           console.log("easy-bake: task name not recognized " + task_name);
           continue;
         }
-        if (options.namespace) {
-          task_name = "" + options.namespace + "." + task_name;
+        if (options.scope) {
+          task_name = "" + options.scope + "." + task_name;
         }
         global.task.apply(null, [task_name].concat(args));
       }

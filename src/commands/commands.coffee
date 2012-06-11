@@ -187,8 +187,10 @@ class eb.command.RunTest
     # command scoping is required because the test suite may not be installed globally
     scoped_command = if @usingPhantomJS() then @command else path.join('node_modules/.bin', @command)
     scoped_args = _.clone(@args)
-    if @usingPhantomJS() and @args[1].search('file://') isnt 0
-      scoped_args[1] = "file://#{eb.utils.resolvePath(@args[1], @command_options.cwd)}"
+    if @usingPhantomJS()
+      scoped_args[1] = "file://#{eb.utils.resolvePath(@args[1], @command_options.cwd)}" if @args[1].search('file://') isnt 0
+    else
+      scoped_args = eb.utils.relativeArguments(scoped_args, @command_options.cwd)
 
     # display
     if options.preview or options.verbose
@@ -196,7 +198,7 @@ class eb.command.RunTest
       (callback?(0, @); return) if options.preview
 
     # execute
-    spawned = spawn scoped_command, @args
+    spawned = spawn scoped_command, scoped_args
     spawned.stderr.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
