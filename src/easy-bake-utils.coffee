@@ -106,7 +106,10 @@ eb.utils.resolveArguments = (args, cwd) ->
   )
 
 eb.utils.relativeArguments = (args, cwd) ->
-  return _.map(args, (arg) => return eb.utils.relativePath(arg, cwd))
+  return _.map(args, (arg) =>
+    return arg if arg[0] is '-' or not _.isString(arg)  # skip options and non-string arguments
+    return eb.utils.relativePath(arg, cwd)
+  )
 
 eb.utils.resolvePath = (target, cwd) ->
   target = eb.utils.safeRequireResolve(target, cwd)

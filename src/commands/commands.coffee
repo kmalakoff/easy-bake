@@ -36,6 +36,11 @@ class eb.command.RunCommand
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) ->
+      @exit_code = code
+      if code is 0
+        timeLog("command succeeded #{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}") unless options.silent
+      else
+        timeLog("command failed #{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')} (exit code: #{code})")
       callback?(code, @)
 
 class eb.command.Remove
@@ -145,7 +150,8 @@ class eb.command.UglifyJS
   outputName: -> return if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
 
   run: (options={}, callback) ->
-    scoped_command = "node_modules/.bin/uglifyjs"
+    # command scoping is required because the test suite may not be installed globally
+    scoped_command = 'node_modules/.bin/uglifyjs'
 
     # display
     if options.preview or options.verbose
@@ -153,19 +159,18 @@ class eb.command.UglifyJS
       (callback?(0, @); return) if options.preview
 
     # execute
-    try
-      src = fs.readFileSync(@args[2], 'utf8')
-      header = if ((header_index = src.indexOf('*/'))>0) then src.substr(0, header_index+2) else ''
-      ast = uglifyjs.parser.parse(src)
-      ast = uglifyjs.uglify.ast_mangle(ast)
-      ast = uglifyjs.uglify.ast_squeeze(ast)
-      src = header + uglifyjs.uglify.gen_code(ast) + ';'
-      fs.writeFileSync(@args[1], src, 'utf8')
-      timeLog("compressed #{eb.utils.relativePath(@outputName(), @command_options.cwd)}") unless options.silent
-      callback?(0, @)
-    catch e
-      timeLog("failed to minify #{eb.utils.relativePath(@outputName(), @command_options.cwd)} .... error code: #{e.code}")
-      callback?(e.code, @)
+    spawned = spawn scoped_command, @args, @command_options.cwd, eb.utils.extractCWD(@command_options)
+    spawned.stderr.on 'data', (data) ->
+      process.stderr.write data.toString()
+    spawned.stdout.on 'data', (data) ->
+      process.stderr.write data.toString()
+    spawned.on 'exit', (code) =>
+      @exit_code = code
+      if code is 0
+        timeLog("compressed #{eb.utils.relativePath(@outputName(), @command_options.cwd)}") unless options.silent
+      else
+        timeLog("failed to compress #{eb.utils.relativePath(@outputName(), @command_options.cwd)} .... error code: #{e.code}")
+      callback?(code, @)
 
 class eb.command.RunTest
   constructor: (@command, args=[], @command_options={}) ->
@@ -177,10 +182,8 @@ class eb.command.RunTest
   exitCode: -> return @exit_code
 
   run: (options={}, callback) ->
-    if @usingPhantomJS()
-      scoped_command = @command
-    else
-      scoped_command = "node_modules/.bin/#{@command}"
+    # command scoping is required because the test suite may not be installed globally
+    scoped_command = if @usingPhantomJS() then @command else "node_modules/.bin/#{@command}"
 
     # display
     if options.preview or options.verbose

@@ -149,6 +149,14 @@
         return process.stderr.write(data.toString());
       });
       return spawned.on('exit', function(code) {
+        this.exit_code = code;
+        if (code === 0) {
+          if (!options.silent) {
+            timeLog("command succeeded " + this.command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
+          }
+        } else {
+          timeLog("command failed " + this.command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + " (exit code: " + code + ")");
+        }
         return typeof callback === "function" ? callback(code, this) : void 0;
       });
     };
@@ -400,11 +408,12 @@
     };
 
     UglifyJS.prototype.run = function(options, callback) {
-      var ast, header, header_index, scoped_command, src;
+      var scoped_command, spawned,
+        _this = this;
       if (options == null) {
         options = {};
       }
-      scoped_command = "node_modules/.bin/uglifyjs";
+      scoped_command = 'node_modules/.bin/uglifyjs';
       if (options.preview || options.verbose) {
         console.log("" + scoped_command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
         if (options.preview) {
@@ -414,22 +423,24 @@
           return;
         }
       }
-      try {
-        src = fs.readFileSync(this.args[2], 'utf8');
-        header = (header_index = src.indexOf('*/')) > 0 ? src.substr(0, header_index + 2) : '';
-        ast = uglifyjs.parser.parse(src);
-        ast = uglifyjs.uglify.ast_mangle(ast);
-        ast = uglifyjs.uglify.ast_squeeze(ast);
-        src = header + uglifyjs.uglify.gen_code(ast) + ';';
-        fs.writeFileSync(this.args[1], src, 'utf8');
-        if (!options.silent) {
-          timeLog("compressed " + (eb.utils.relativePath(this.outputName(), this.command_options.cwd)));
+      spawned = spawn(scoped_command, this.args, this.command_options.cwd, eb.utils.extractCWD(this.command_options));
+      spawned.stderr.on('data', function(data) {
+        return process.stderr.write(data.toString());
+      });
+      spawned.stdout.on('data', function(data) {
+        return process.stderr.write(data.toString());
+      });
+      return spawned.on('exit', function(code) {
+        _this.exit_code = code;
+        if (code === 0) {
+          if (!options.silent) {
+            timeLog("compressed " + (eb.utils.relativePath(_this.outputName(), _this.command_options.cwd)));
+          }
+        } else {
+          timeLog("failed to compress " + (eb.utils.relativePath(_this.outputName(), _this.command_options.cwd)) + " .... error code: " + e.code);
         }
-        return typeof callback === "function" ? callback(0, this) : void 0;
-      } catch (e) {
-        timeLog("failed to minify " + (eb.utils.relativePath(this.outputName(), this.command_options.cwd)) + " .... error code: " + e.code);
-        return typeof callback === "function" ? callback(e.code, this) : void 0;
-      }
+        return typeof callback === "function" ? callback(code, _this) : void 0;
+      });
     };
 
     return UglifyJS;
@@ -472,11 +483,7 @@
       if (options == null) {
         options = {};
       }
-      if (this.usingPhantomJS()) {
-        scoped_command = this.command;
-      } else {
-        scoped_command = "node_modules/.bin/" + this.command;
-      }
+      scoped_command = this.usingPhantomJS() ? this.command : "node_modules/.bin/" + this.command;
       if (options.preview || options.verbose) {
         display_args = this.args.length === 4 ? this.args.slice(0, this.args.length - 1) : this.args;
         console.log("" + scoped_command + " " + (display_args.join(' ')));
