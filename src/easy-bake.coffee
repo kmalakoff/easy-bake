@@ -10,7 +10,7 @@ RESERVED_SETS = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
 RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
-# export or create eb namespace
+# export or create eb scope
 eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
 eb.utils = require './lib/easy-bake-utils'
 eb.command = require './lib/easy-bake-commands'
@@ -46,12 +46,12 @@ class eb.Oven
       test:         ['Test library',                            (options) => @test(options)]
       gitpush:      ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @gitPush(options)]
 
-    # register and optionally namespace the tasks
+    # register and optionally scope the tasks
     task_names = if options.tasks then options.tasks else _.keys(tasks)
     for task_name in task_names
       args = tasks[task_name]
       (console.log("easy-bake: task name not recognized #{task_name}"); continue) unless args
-      task_name = "#{options.namespace}.#{task_name}" if options.namespace
+      task_name = "#{options.scope}.#{task_name}" if options.scope
       global.task.apply(null, [task_name].concat(args))
     @
 

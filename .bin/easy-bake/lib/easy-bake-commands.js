@@ -180,6 +180,7 @@
     };
 
     Remove.prototype.run = function(options, callback) {
+      var parent_dir;
       if (options == null) {
         options = {};
       }
@@ -198,6 +199,7 @@
           return;
         }
       }
+      parent_dir = path.dirname(this.target());
       if (this.args[0] === '-r') {
         wrench.rmdirSyncRecursive(this.target());
       } else {
@@ -206,6 +208,7 @@
       if (!options.silent) {
         timeLog("removed " + (eb.utils.relativePath(this.target(), this.command_options.cwd)));
       }
+      eb.utils.rmdirIfEmpty(parent_dir);
       return typeof callback === "function" ? callback(0, this) : void 0;
     };
 

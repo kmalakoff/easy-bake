@@ -109,7 +109,7 @@ task 'postinstall', 'Called by npm after installing library', (options) -> myPos
 ###Oven.publishTasks() Options
 
 - **tasks**: an array of tasks to include (in case you want to use only a subset)
-- **namespace**: provides a namespace for the tasks like 'cake namspace.build' instead of just 'cake build'
+- **scope**: provides a scope for the tasks like 'cake namspace.build' instead of just 'cake build'
 
 
 

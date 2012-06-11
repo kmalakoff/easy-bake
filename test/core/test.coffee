@@ -90,6 +90,13 @@ exports.easy_bake_core =
 
     global.invoke('clean')
 
+  'Scoping Tests': (test) ->
+    scoped_oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.yml'))
+    scoped_oven.publishOptions().publishTasks({scope: 'fun'})  # chaining
+
+    test.doesNotThrow((->global.invoke('fun.clean')), null, 'fun.clean task invoked')
+    test.done()
+
   'Error cases': (test) ->
     # TODO
     test.done()

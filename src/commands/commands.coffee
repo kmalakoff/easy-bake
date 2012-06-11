@@ -55,8 +55,13 @@ class eb.command.Remove
       console.log("rm #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
       (callback?(0, @); return) if options.preview
 
+    parent_dir = path.dirname(@target())
     if @args[0]=='-r' then wrench.rmdirSyncRecursive(@target()) else fs.unlinkSync(@target())
     timeLog("removed #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
+
+    # remove the parent directory if it is empty
+    eb.utils.rmdirIfEmpty(parent_dir)
+
     callback?(0, @)
 
 class eb.command.Copy

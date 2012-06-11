@@ -61,6 +61,23 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
 
   return file_groups
 
+eb.utils.dirIsEmpty = (dir) ->
+  SYSTEM_FILES = ['.DS_Store']
+
+  children = fs.readdirSync(dir)
+  (return false if _.contains(SYSTEM_FILES, child)) for child in children
+
+  return true
+
+eb.utils.rmdirIfEmpty = (dir) ->
+  return unless eb.utils.dirIsEmpty(dir)
+
+  children = fs.readdirSync(dir)
+  try
+    fs.unlinkSync(path.join(dir, child)) for child in children
+    fs.rmdirSync(dir)
+  catch e
+
 eb.utils.relativePath = (target, cwd) ->
   return target if not cwd or target.search(cwd) isnt 0
   relative_path = target.substr(cwd.length)

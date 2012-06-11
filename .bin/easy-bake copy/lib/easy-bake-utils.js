@@ -93,36 +93,6 @@
     return file_groups;
   };
 
-  eb.utils.dirIsEmpty = function(dir) {
-    var SYSTEM_FILES, child, children, _i, _len;
-    SYSTEM_FILES = ['.DS_Store'];
-    children = fs.readdirSync(dir);
-    for (_i = 0, _len = children.length; _i < _len; _i++) {
-      child = children[_i];
-      if (_.contains(SYSTEM_FILES, child)) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  eb.utils.rmdirIfEmpty = function(dir) {
-    var child, children, _i, _len;
-    if (!eb.utils.dirIsEmpty(dir)) {
-      return;
-    }
-    children = fs.readdirSync(dir);
-    try {
-      for (_i = 0, _len = children.length; _i < _len; _i++) {
-        child = children[_i];
-        fs.unlinkSync(path.join(dir, child));
-      }
-      return fs.rmdirSync(dir);
-    } catch (e) {
-
-    }
-  };
-
   eb.utils.relativePath = function(target, cwd) {
     var relative_path;
     if (!cwd || target.search(cwd) !== 0) {
