@@ -4,6 +4,7 @@ _ = require 'underscore'
 globber = require 'glob-whatev'
 
 eb = {} unless !!eb; @eb = {} unless !!@eb
+eb.command = require './easy-bake-commands'
 
 # export or create eb namespace
 eb.utils = @eb.utils = if (typeof(exports) != 'undefined') then exports else {}
@@ -13,12 +14,36 @@ eb.utils = @eb.utils = if (typeof(exports) != 'undefined') then exports else {}
 ##############################
 eb.utils.extractSetOptions = (set, mode, defaults) ->
   set_options = _.clone(set)
-  if set.options
-    _.extend(set_options, set.options['global']) if set.options['global']
-    _.extend(set_options, set.options[mode]) if set.options[mode]
-    delete set_options['options']
+  if set.modes
+    _.extend(set_options, set.modes[mode]) if set.modes[mode]
+    delete set_options['modes']
   _.defaults(set_options, defaults) if defaults
   return set_options
+
+eb.utils.extractSetCommands = (set_options, queue, cwd) ->
+  return unless set_options.commands
+
+  for command in set_options.commands
+    # the command is named
+    if _.isObject(command)
+      command_name = command.command
+      command_args = command.args
+    else
+      components = command.split(' ')
+      command_name = components[0]
+      command_args = components.slice(1)
+
+    # add the command
+    if command_name is 'cp'
+      queue.push(new eb.command.Copy(command_args, {cwd: cwd}))
+    else
+      queue.push(new eb.command.RunCommand(command_name, command_args, {cwd: cwd}))
+
+eb.utils.extractSetBundles = (set_options, queue, cwd) ->
+  return unless set_options.bundles
+
+  for bundle_name, entries of set_options.bundles
+    queue.push(new eb.command.Bundle(bundle_name, entries, {cwd: cwd}))
 
 eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   file_groups = []

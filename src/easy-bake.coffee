@@ -61,17 +61,7 @@ class eb.Oven
     # collect tests to run
     for set_name, set of @YAML
       continue unless set_name is 'postinstall'
-
-      # run commands
-      for name, command_info of set
-        # missing the command
-        (console.log("postinstall #{set_name}.#{name} is not a command"); continue) unless command_info.command
-
-        # add the command
-        if command_info.command is 'cp'
-          command_queue.push(new eb.command.Copy(command_info.args, {cwd: @YAML_dir}))
-        else
-          command_queue.push(new eb.command.RunCommand(command_info.command, command_info.args, _.defaults({cwd: @YAML_dir}, command_info.options)))
+      eb.utils.extractSetCommands(set, command_queue, @YAML_dir)
 
     # add footer
     if options.verbose
@@ -173,6 +163,12 @@ class eb.Oven
         # add the command
         command_queue.push(new eb.command.Coffee(args, {cwd: file_group.directory, compress: set_options.compress, test: options.test}))
 
+      # add commands
+      eb.utils.extractSetCommands(set_options, command_queue, @YAML_dir)
+
+      # add bundles
+      eb.utils.extractSetBundles(set_options, command_queue, @YAML_dir)
+
     # add footer
     if options.verbose
       command_queue.push({run: (run_options, callback, queue) -> console.log("build completed with #{queue.errorCount()} error(s)"); callback?()})
@@ -197,7 +193,7 @@ class eb.Oven
 
     # collect tests to run
     for set_name, set of @YAML
-      continue if _.contains(RESERVED_SETS, set_name) or not (set.options and set.options.hasOwnProperty('test'))
+      continue if _.contains(RESERVED_SETS, set_name) or not (set.modes and set.modes.hasOwnProperty('test'))
 
       set_options = eb.utils.extractSetOptions(set, 'test')
 
@@ -222,6 +218,9 @@ class eb.Oven
 
           # add the command
           test_queue.push(new eb.command.RunTest(set_options.command, args, {cwd: @YAML_dir}))
+
+      # add commands
+      eb.utils.extractSetCommands(set, command_queue, @YAML_dir)
 
     # add footer
     unless options.preview

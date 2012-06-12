@@ -59,7 +59,7 @@ tests:
   bare: true
   directories:
     - test/easy-bake_core
-  options:
+  modes:
     test:
       command: nodeunit
       files:
@@ -225,7 +225,7 @@ some_testing_group:
   directories:
     - test/some_tests
     - test/some_more_tests
-  options:
+  modes:
     test:
       command: phantomjs
       runner: phantomjs-qunit-runner.js
@@ -242,7 +242,7 @@ You will need to install phantom yourself since there is no npm package for it. 
 ```
 some_testing_group:
   ...
-  options:
+  modes:
     test:
       command: phantomjs
       runner: phantomjs-qunit-runner.js
@@ -267,7 +267,7 @@ Just include it as a development dependency to your package.json:
 ```
 some_testing_group:
   ...
-  options:
+  modes:
     test:
       command: nodeunit
     files:

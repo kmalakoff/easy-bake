@@ -35,12 +35,12 @@ class eb.command.RunCommand
       process.stderr.write data.toString()
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
-    spawned.on 'exit', (code) ->
+    spawned.on 'exit', (code) =>
       @exit_code = code
       if code is 0
-        timeLog("command succeeded #{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}") unless options.silent
+        timeLog("command succeeded '#{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}'") unless options.silent
       else
-        timeLog("command failed #{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')} (exit code: #{code})")
+        timeLog("command failed '#{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}' (exit code: #{code})")
       callback?(code, @)
 
 class eb.command.Remove
@@ -85,6 +85,60 @@ class eb.command.Copy
     # do the copy
     if @args[0]=='-r' then wrench.copyDirSyncRecursive(@source(), @target()) else fs.writeFileSync(@target(), fs.readFileSync(@source(), 'utf8'), 'utf8')
     timeLog("copied #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
+    callback?(0, @)
+
+class eb.command.Bundle
+  constructor: (@bundle_name, @entries, @command_options={}) ->
+  target: -> return @bundle_name
+
+  run: (options={}, callback) ->
+    # display
+    if options.preview or options.verbose
+      console.log("bundle #{@bundle_name} #{JSON.stringify(@entries)}")
+      (callback?(0, @); return) if options.preview
+
+    # make the destination directory
+    try
+      target_dir = path.dirname(@target())
+      wrench.mkdirSyncRecursive(target_dir, 0o0777) unless path.existsSync(target_dir)
+    catch e
+      throw e if e.code isnt 'EEXIST'
+
+    # do the copy
+    bundle = """
+      (function() {
+        var root = this;
+        var modules = {};
+        this.require = function(module_name) {
+          if (!modules.hasOwnProperty(module_name)) throw "required module missing: " + module_name;
+          if (!modules[module_name].exports) {
+            modules[module_name].exports = {};
+            modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);
+          }
+          return modules[module_name].exports;
+        };
+        this.require.define = function(obj) {
+          for (var module_name in obj) {
+modules[module_name] = {loader: obj[module_name]};
+          };
+        };\n
+      """
+    for module_name, file of @entries
+      pathed_file = eb.utils.resolvePath(file, @command_options.cwd)
+      try
+        file_contents = fs.readFileSync(pathed_file, 'utf8')
+      catch e
+        console.log "couldn't bundle #{file}. Does it exist?"
+      bundle += """
+        this.require.define({
+          '#{module_name}': function(exports, require, module) {\n#{file_contents}\n}
+        });\n
+        """
+    bundle += """
+      })(this);
+      """
+    fs.writeFileSync(@target(), bundle, 'utf8')
+    timeLog("bundled #{eb.utils.relativePath(@target(), @command_options.cwd)}")
     callback?(0, @)
 
 class eb.command.Coffee

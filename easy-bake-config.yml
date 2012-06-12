@@ -24,7 +24,7 @@ tests:
   bare: true
   directories:
     - test/core
-  options:
+  modes:
     test:
       command: nodeunit
       files:

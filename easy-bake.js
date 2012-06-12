@@ -109,7 +109,7 @@
     };
 
     Oven.prototype.postinstall = function(options, callback) {
-      var command_info, command_queue, name, set, set_name, _ref;
+      var command_queue, set, set_name, _ref;
       if (options == null) {
         options = {};
       }
@@ -120,22 +120,7 @@
         if (set_name !== 'postinstall') {
           continue;
         }
-        for (name in set) {
-          command_info = set[name];
-          if (!command_info.command) {
-            console.log("postinstall " + set_name + "." + name + " is not a command");
-            continue;
-          }
-          if (command_info.command === 'cp') {
-            command_queue.push(new eb.command.Copy(command_info.args, {
-              cwd: this.YAML_dir
-            }));
-          } else {
-            command_queue.push(new eb.command.RunCommand(command_info.command, command_info.args, _.defaults({
-              cwd: this.YAML_dir
-            }, command_info.options)));
-          }
-        }
+        eb.utils.extractSetCommands(set, command_queue, this.YAML_dir);
       }
       if (options.verbose) {
         command_queue.push({
@@ -288,6 +273,8 @@
             test: options.test
           }));
         }
+        eb.utils.extractSetCommands(set_options, command_queue, this.YAML_dir);
+        eb.utils.extractSetBundles(set_options, command_queue, this.YAML_dir);
       }
       if (options.verbose) {
         command_queue.push({
@@ -329,7 +316,7 @@
       _ref = this.YAML;
       for (set_name in _ref) {
         set = _ref[set_name];
-        if (_.contains(RESERVED_SETS, set_name) || !(set.options && set.options.hasOwnProperty('test'))) {
+        if (_.contains(RESERVED_SETS, set_name) || !(set.modes && set.modes.hasOwnProperty('test'))) {
           continue;
         }
         set_options = eb.utils.extractSetOptions(set, 'test');
@@ -368,6 +355,7 @@
             }));
           }
         }
+        eb.utils.extractSetCommands(set, command_queue, this.YAML_dir);
       }
       if (!options.preview) {
         test_queue.push({
