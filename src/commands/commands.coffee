@@ -83,7 +83,7 @@ class eb.command.Copy
       throw e if e.code isnt 'EEXIST'
 
     # do the copy
-    if @args[0]=='-r' then wrench.copyDirSyncRecursive(@source(), @target()) else fs.writeFileSync(@target(), fs.readFileSync(@source(), 'utf8'), 'utf8')
+    if @args[0]=='-r' then wrench.copyDirSyncRecursive(@source(), @target(), {preserve: true}) else fs.writeFileSync(@target(), fs.readFileSync(@source(), 'utf8'), 'utf8')
     timeLog("copied #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
     callback?(0, @)
 
@@ -107,21 +107,24 @@ class eb.command.Bundle
     # do the copy
     bundle = """
       (function() {
-        var root = this;
-        var modules = {};
-        this.require = function(module_name) {
-          if (!modules.hasOwnProperty(module_name)) throw "required module missing: " + module_name;
-          if (!modules[module_name].exports) {
-            modules[module_name].exports = {};
-            modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);
-          }
-          return modules[module_name].exports;
-        };
-        this.require.define = function(obj) {
-          for (var module_name in obj) {
-modules[module_name] = {loader: obj[module_name]};
+        // a require implementation doesn't already exist
+        if (!this.require) {
+          var root = this;
+          var modules = {};
+          this.require = function(module_name) {
+            if (!modules.hasOwnProperty(module_name)) throw "required module missing: " + module_name;
+            if (!modules[module_name].exports) {
+              modules[module_name].exports = {};
+              modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);
+            }
+            return modules[module_name].exports;
           };
-        };\n
+          this.require.define = function(obj) {
+            for (var module_name in obj) {
+  modules[module_name] = {loader: obj[module_name]};
+            };
+          };
+        }\n
       """
     for module_name, file of @entries
       pathed_file = eb.utils.resolvePath(file, @command_options.cwd)
