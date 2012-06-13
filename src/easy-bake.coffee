@@ -33,6 +33,7 @@ class eb.Oven
     global.option('-p', '--preview',   'display all of the commands that will be run (without running them!)')
     global.option('-v', '--verbose',   'display additional information')
     global.option('-s', '--silent',    'does not output messages to the console (unless errors occur)')
+    global.option('-f', '--force',     'forces the action to occur')
     @
 
   publishTasks: (options={}) ->
@@ -304,7 +305,7 @@ class eb.Oven
       (console.log("skipping publishnpm for: #{package_desc_path} (name trails with '_dev')"); return) if package_desc.name.search(/\_dev$/) >= 0
       (console.log("skipping publishnpm for: #{package_desc_path} (main file missing...do you need to build it?)"); return) unless path.existsSync(path.join(package_path, package_desc.main))
 
-      git_command = new eb.command.PublishNPM({cwd: package_path})
+      git_command = new eb.command.PublishNPM({force: options.force, cwd: package_path})
       git_command.run(options, (code) ->
         console.log("publishgit completed with #{code} error(s)") unless options.verbose
         callback?(code)

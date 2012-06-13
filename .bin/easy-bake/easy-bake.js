@@ -48,6 +48,7 @@
       global.option('-p', '--preview', 'display all of the commands that will be run (without running them!)');
       global.option('-v', '--verbose', 'display additional information');
       global.option('-s', '--silent', 'does not output messages to the console (unless errors occur)');
+      global.option('-f', '--force', 'forces the action to occur');
       return this;
     };
 
@@ -487,6 +488,7 @@
             return;
           }
           git_command = new eb.command.PublishNPM({
+            force: options.force,
             cwd: package_path
           });
           return git_command.run(options, function(code) {

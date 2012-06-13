@@ -271,16 +271,18 @@ class eb.command.RunTest
 class eb.command.PublishGit
   constructor: (@command_options={}) ->
   run: (options={}, callback) ->
-    git_queue = new eb.command.Queue()
-    git_queue.push(new eb.command.RunCommand('git', ['add', '.'], @command_options))
-    git_queue.push(new eb.command.RunCommand('git', ['rm', '$(git ls-files --deleted)'], @command_options))
-    git_queue.push(new eb.command.RunCommand('git', ['commit'], @command_options))
-    git_queue.push(new eb.command.RunCommand('git', ['push'], @command_options))
-    git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
+    local_queue = new eb.command.Queue()
+    local_queue.push(new eb.command.RunCommand('git', ['add', '.'], @command_options))
+    local_queue.push(new eb.command.RunCommand('git', ['rm', '$(git ls-files --deleted)'], @command_options))
+    local_queue.push(new eb.command.RunCommand('git', ['commit'], @command_options))
+    local_queue.push(new eb.command.RunCommand('git', ['push'], @command_options))
+    local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
 
 class eb.command.PublishNPM
   constructor: (@command_options={}) ->
   run: (options={}, callback) ->
-    git_queue = new eb.command.Queue()
-    git_queue.push(new eb.command.RunCommand('npm', ['publish', '--force'], @command_options))
-    git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
+    local_queue = new eb.command.Queue()
+    args = ['publish']
+    args.push('--force') if @command_options.force
+    local_queue.push(new eb.command.RunCommand('npm', args, @command_options))
+    local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
