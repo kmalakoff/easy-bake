@@ -1,6 +1,6 @@
 {
   "author"        : "Kevin Malakoff <https://github.com/kmalakoff>",
-  "name"          : "easy-bake",
+  "name"          : "easy-bake_dev",
   "description"   : "EasyBake provide YAML-based Cakefile helpers for common CoffeeScript library packaging functionality",
   "keywords"      : ["easybake", "easy-bake", "coffeescript", "library", "build", "packaging", "package", "utility", "util"],
 

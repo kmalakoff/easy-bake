@@ -44,7 +44,8 @@ class eb.Oven
       build:        ['Build library and tests',                 (options) => @build(options)]
       watch:        ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
       test:         ['Test library',                            (options) => @test(options)]
-      gitpush:      ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @gitPush(options)]
+      publishgit:   ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @publishGit(options)]
+      publishnpm:   ['Cleans, builds, tests and if successful, runs npm commands to publish the project',  (options) => @publishNPM(options)]
 
     # register and optionally scope the tasks
     task_names = if options.tasks then options.tasks else _.keys(tasks)
@@ -247,26 +248,65 @@ class eb.Oven
     command_queue.run(options, callback) unless options.queue
     @
 
-  gitPush: (options={}, callback) ->
+  publishGit: (options={}, callback) ->
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     test_queue = new eb.command.Queue()
-    command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'))
+    command_queue.push(new eb.command.RunQueue(test_queue, 'publishgit'))
 
     # build a chain of commands
     chain_options = _.defaults({queue: test_queue}, options)
     @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
-    test_queue.push({run: (run_options, callback, queue) ->
+    test_queue.push({run: (run_options, callback, queue) =>
 
       # don't run because the tests weren't successful
       unless (options.preview or options.verbose)
         if queue.errorCount()
-          console.log("gitpush aborted due to #{queue.errorCount()} error(s)")
+          console.log("publishgit aborted due to #{queue.errorCount()} error(s)")
           callback?(queue.errorCount()); return
 
-      git_command = new eb.command.GitPush({cwd: @YAML_dir})
+      git_command = new eb.command.PublishGit({cwd: @YAML_dir})
       git_command.run(options, (code) ->
-        console.log("gitpush completed with #{code} error(s)") unless options.verbose
+        console.log("publishgit completed with #{code} error(s)") unless options.verbose
+        callback?(code)
+      )
+    })
+
+    # run
+    command_queue.run(options, callback) unless options.queue
+    @
+
+  publishNPM: (options={}, callback) ->
+    command_queue = if options.queue then options.queue else new eb.command.Queue()
+
+    test_queue = new eb.command.Queue()
+    command_queue.push(new eb.command.RunQueue(test_queue, 'publishNPM'))
+
+    # build a chain of commands
+    chain_options = _.defaults({queue: test_queue}, options)
+    @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
+    test_queue.push({run: (run_options, callback, queue) =>
+
+      # don't run because the tests weren't successful
+      unless (options.preview or options.verbose)
+        if queue.errorCount()
+          console.log("publishnpm aborted due to #{queue.errorCount()} error(s)")
+          callback?(queue.errorCount()); return
+
+      # CONVENTION: try a nested package in the form 'packages/npm' first
+      package_path = path.join(@YAML_dir, 'packages', 'npm')
+      package_path = @YAML_dir unless path.existsSync(package_path) # fallback to this project
+
+      # CONVENTION: safe guard...do not publish packages that end in _dev or missing the main file
+      package_desc_path = path.join(package_path, 'package.json')
+      (console.log("no package.json found for publishNPM: #{package_desc_path.replace(@YAML_dir, '')}"); return) unless path.existsSync(package_desc_path) # fallback to this project
+      package_desc = require(package_desc_path)
+      (console.log("skipping publishnpm for: #{package_desc_path} (name trails with '_dev')"); return) if package_desc.name.search(/\_dev$/) >= 0
+      (console.log("skipping publishnpm for: #{package_desc_path} (main file missing...do you need to build it?)"); return) unless path.existsSync(path.join(package_path, package_desc.main))
+
+      git_command = new eb.command.PublishNPM({cwd: package_path})
+      git_command.run(options, (code) ->
+        console.log("publishgit completed with #{code} error(s)") unless options.verbose
         callback?(code)
       )
     })

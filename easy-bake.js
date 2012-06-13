@@ -86,9 +86,14 @@
             return _this.test(options);
           }
         ],
-        gitpush: [
+        publishgit: [
           'Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project', function(options) {
-            return _this.gitPush(options);
+            return _this.publishGit(options);
+          }
+        ],
+        publishnpm: [
+          'Cleans, builds, tests and if successful, runs npm commands to publish the project', function(options) {
+            return _this.publishNPM(options);
           }
         ]
       };
@@ -392,14 +397,15 @@
       return this;
     };
 
-    Oven.prototype.gitPush = function(options, callback) {
-      var chain_options, command_queue, test_queue;
+    Oven.prototype.publishGit = function(options, callback) {
+      var chain_options, command_queue, test_queue,
+        _this = this;
       if (options == null) {
         options = {};
       }
       command_queue = options.queue ? options.queue : new eb.command.Queue();
       test_queue = new eb.command.Queue();
-      command_queue.push(new eb.command.RunQueue(test_queue, 'gitpush'));
+      command_queue.push(new eb.command.RunQueue(test_queue, 'publishgit'));
       chain_options = _.defaults({
         queue: test_queue
       }, options);
@@ -411,19 +417,81 @@
           var git_command;
           if (!(options.preview || options.verbose)) {
             if (queue.errorCount()) {
-              console.log("gitpush aborted due to " + (queue.errorCount()) + " error(s)");
+              console.log("publishgit aborted due to " + (queue.errorCount()) + " error(s)");
               if (typeof callback === "function") {
                 callback(queue.errorCount());
               }
               return;
             }
           }
-          git_command = new eb.command.GitPush({
-            cwd: this.YAML_dir
+          git_command = new eb.command.PublishGit({
+            cwd: _this.YAML_dir
           });
           return git_command.run(options, function(code) {
             if (!options.verbose) {
-              console.log("gitpush completed with " + code + " error(s)");
+              console.log("publishgit completed with " + code + " error(s)");
+            }
+            return typeof callback === "function" ? callback(code) : void 0;
+          });
+        }
+      });
+      if (!options.queue) {
+        command_queue.run(options, callback);
+      }
+      return this;
+    };
+
+    Oven.prototype.publishNPM = function(options, callback) {
+      var chain_options, command_queue, test_queue,
+        _this = this;
+      if (options == null) {
+        options = {};
+      }
+      command_queue = options.queue ? options.queue : new eb.command.Queue();
+      test_queue = new eb.command.Queue();
+      command_queue.push(new eb.command.RunQueue(test_queue, 'publishNPM'));
+      chain_options = _.defaults({
+        queue: test_queue
+      }, options);
+      this.clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({
+        no_exit: true
+      }, chain_options));
+      test_queue.push({
+        run: function(run_options, callback, queue) {
+          var git_command, package_desc, package_desc_path, package_path;
+          if (!(options.preview || options.verbose)) {
+            if (queue.errorCount()) {
+              console.log("publishnpm aborted due to " + (queue.errorCount()) + " error(s)");
+              if (typeof callback === "function") {
+                callback(queue.errorCount());
+              }
+              return;
+            }
+          }
+          package_path = path.join(_this.YAML_dir, 'packages', 'npm');
+          if (!path.existsSync(package_path)) {
+            package_path = _this.YAML_dir;
+          }
+          package_desc_path = path.join(package_path, 'package.json');
+          if (!path.existsSync(package_desc_path)) {
+            console.log("no package.json found for publishNPM: " + (package_desc_path.replace(_this.YAML_dir, '')));
+            return;
+          }
+          package_desc = require(package_desc_path);
+          if (package_desc.name.search(/\_dev$/) >= 0) {
+            console.log("skipping publishnpm for: " + package_desc_path + " (name trails with '_dev')");
+            return;
+          }
+          if (!path.existsSync(path.join(package_path, package_desc.main))) {
+            console.log("skipping publishnpm for: " + package_desc_path + " (main file missing...do you need to build it?)");
+            return;
+          }
+          git_command = new eb.command.PublishNPM({
+            cwd: package_path
+          });
+          return git_command.run(options, function(code) {
+            if (!options.verbose) {
+              console.log("publishgit completed with " + code + " error(s)");
             }
             return typeof callback === "function" ? callback(code) : void 0;
           });

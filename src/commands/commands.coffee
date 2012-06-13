@@ -268,7 +268,7 @@ class eb.command.RunTest
         timeLog("tests failed #{eb.utils.relativePath(@fileName(), @command_options.cwd)} (exit code: #{code})")
       callback?(code, @)
 
-class eb.command.GitPush
+class eb.command.PublishGit
   constructor: (@command_options={}) ->
   run: (options={}, callback) ->
     git_queue = new eb.command.Queue()
@@ -276,4 +276,11 @@ class eb.command.GitPush
     git_queue.push(new eb.command.RunCommand('git', ['rm', '$(git ls-files --deleted)'], @command_options))
     git_queue.push(new eb.command.RunCommand('git', ['commit'], @command_options))
     git_queue.push(new eb.command.RunCommand('git', ['push'], @command_options))
+    git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
+
+class eb.command.PublishNPM
+  constructor: (@command_options={}) ->
+  run: (options={}, callback) ->
+    git_queue = new eb.command.Queue()
+    git_queue.push(new eb.command.RunCommand('npm', ['publish', '--force'], @command_options))
     git_queue.run(options, (queue) -> callback?(queue.errorCount(), @))

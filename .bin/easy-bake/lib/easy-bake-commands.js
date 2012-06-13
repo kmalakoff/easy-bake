@@ -580,13 +580,13 @@
 
   })();
 
-  eb.command.GitPush = (function() {
+  eb.command.PublishGit = (function() {
 
-    function GitPush(command_options) {
+    function PublishGit(command_options) {
       this.command_options = command_options != null ? command_options : {};
     }
 
-    GitPush.prototype.run = function(options, callback) {
+    PublishGit.prototype.run = function(options, callback) {
       var git_queue;
       if (options == null) {
         options = {};
@@ -601,7 +601,29 @@
       });
     };
 
-    return GitPush;
+    return PublishGit;
+
+  })();
+
+  eb.command.PublishNPM = (function() {
+
+    function PublishNPM(command_options) {
+      this.command_options = command_options != null ? command_options : {};
+    }
+
+    PublishNPM.prototype.run = function(options, callback) {
+      var git_queue;
+      if (options == null) {
+        options = {};
+      }
+      git_queue = new eb.command.Queue();
+      git_queue.push(new eb.command.RunCommand('npm', ['publish', '--force'], this.command_options));
+      return git_queue.run(options, function(queue) {
+        return typeof callback === "function" ? callback(queue.errorCount(), this) : void 0;
+      });
+    };
+
+    return PublishNPM;
 
   })();
 
