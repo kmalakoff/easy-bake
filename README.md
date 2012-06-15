@@ -157,7 +157,7 @@ It is best to preinstall a specific version of easy-bake in your package.json (p
 },
 
 "devDependencies": {
-  "coffee-script": "latest"
+  "coffee-script": ">=1.3.3"
 },
 ```
 
@@ -259,7 +259,7 @@ Just include it as a development dependency to your package.json:
 
 ```
 "devDependencies": {
-  "coffee-script": "latest",
+  "coffee-script": ">=1.3.3",
   "nodeunit": "latest"
 },
 ```

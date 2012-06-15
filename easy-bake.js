@@ -479,8 +479,8 @@
             return;
           }
           package_desc = require(package_desc_path);
-          if (package_desc.name.search(/\_dev$/) >= 0) {
-            console.log("skipping publishnpm for: " + package_desc_path + " (name trails with '_dev')");
+          if (package_desc.name.search(/^_/) >= 0) {
+            console.log("skipping publishnpm for: " + package_desc_path + " (name starts with '_')");
             return;
           }
           if (!path.existsSync(path.join(package_path, package_desc.main))) {

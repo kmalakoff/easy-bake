@@ -289,7 +289,7 @@
     };
 
     Bundle.prototype.run = function(options, callback) {
-      var bundle, file, file_contents, module_name, pathed_file, target_dir, _ref;
+      var bundle, entry, file_contents, module_name, pathed_file, symbol, target_dir, _i, _len, _ref;
       if (options == null) {
         options = {};
       }
@@ -312,17 +312,29 @@
           throw e;
         }
       }
-      bundle = "    (function() {\n      // a require implementation doesn't already exist\n      if (!this.require) {\n        var root = this;\n        var modules = {};\n        this.require = function(module_name) {\n          if (!modules.hasOwnProperty(module_name)) throw \"required module missing: \" + module_name;\n          if (!modules[module_name].exports) {\n            modules[module_name].exports = {};\n            modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);\n          }\n          return modules[module_name].exports;\n        };\n        this.require.define = function(obj) {\n          for (var module_name in obj) {\nmodules[module_name] = {loader: obj[module_name]};\n          };\n        };\n      }\n";
+      bundle = "(function() {\n  // a require implementation doesn't already exist\n  if (!this.require) {\n    var root = this;\n    var modules = {};\n    this.require = function(module_name) {\n      if (!modules.hasOwnProperty(module_name)) throw \"required module missing: \" + module_name;\n      if (!modules[module_name].exports) {\n        modules[module_name].exports = {};\n        modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);\n      }\n      return modules[module_name].exports;\n    };\n    this.require.define = function(obj) {\n      for (var module_name in obj) {\n        modules[module_name] = {loader: obj[module_name]};\n      };\n    };\n  }\n";
       _ref = this.entries;
       for (module_name in _ref) {
-        file = _ref[module_name];
-        pathed_file = eb.utils.resolvePath(file, this.command_options.cwd);
-        try {
-          file_contents = fs.readFileSync(pathed_file, 'utf8');
-        } catch (e) {
-          console.log("couldn't bundle " + file + ". Does it exist?");
+        entry = _ref[module_name];
+        if (module_name === '_publish') {
+          for (module_name in entry) {
+            symbol = entry[module_name];
+            bundle += "if (!this['" + symbol + "']) {this['" + symbol + "'] = this.require('" + module_name + "');}\n";
+          }
+        } else if (module_name === '_load') {
+          for (_i = 0, _len = entry.length; _i < _len; _i++) {
+            module_name = entry[_i];
+            bundle += "this.require('" + module_name + "');\n";
+          }
+        } else {
+          pathed_file = eb.utils.resolvePath(entry, this.command_options.cwd);
+          try {
+            file_contents = fs.readFileSync(pathed_file, 'utf8');
+          } catch (e) {
+            console.log("couldn't bundle " + entry + ". Does it exist?");
+          }
+          bundle += "this.require.define({\n  '" + module_name + "': function(exports, require, module) {\n" + file_contents + "\n}\n});\n";
         }
-        bundle += "this.require.define({\n  '" + module_name + "': function(exports, require, module) {\n" + file_contents + "\n}\n});\n";
       }
       bundle += "})(this);";
       fs.writeFileSync(this.target(), bundle, 'utf8');

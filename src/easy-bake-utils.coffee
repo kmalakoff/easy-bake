@@ -9,6 +9,8 @@ eb.command = require './easy-bake-commands'
 # export or create eb namespace
 eb.utils = @eb.utils = if (typeof(exports) != 'undefined') then exports else {}
 
+KNOWN_SYSTEM_FILES = ['.DS_Store']
+
 ##############################
 # Utilities
 ##############################
@@ -55,7 +57,7 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
 
   # build the list of files per directory if there are any matching files
   for unpathed_dir in directories
-    directory = eb.utils.resolvePath(unpathed_dir, cwd)
+    directory = eb.utils.resolvePath(unpathed_dir, cwd, true)
     unless path.existsSync(directory)
       console.log("warning: directory is missing #{directory}") # unless options.preview
       continue
@@ -87,11 +89,7 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   return file_groups
 
 eb.utils.dirIsEmpty = (dir) ->
-  SYSTEM_FILES = ['.DS_Store']
-
-  children = fs.readdirSync(dir)
-  (return false if _.contains(SYSTEM_FILES, child)) for child in children
-
+  (return false if _.contains(KNOWN_SYSTEM_FILES, child)) for child in fs.readdirSync(dir)
   return true
 
 eb.utils.rmdirIfEmpty = (dir) ->
@@ -142,9 +140,10 @@ eb.utils.safeRequireResolve = (target, cwd) ->
   return resolved_target
 
 eb.utils.resolveArguments = (args, cwd) ->
-  return _.map(args, (arg) ->
+  return _.map(args, (arg, index) ->
     return arg if arg[0] is '-' or not _.isString(arg)  # skip options and non-string arguments
-    return eb.utils.resolvePath(arg, cwd)
+    # don't use require to reolve the output directory
+    return if (args[index-1] is '-o' or args[index-1] is '--output') then eb.utils.resolvePath(arg, cwd, true) else eb.utils.resolvePath(arg, cwd)
   )
 
 eb.utils.relativeArguments = (args, cwd) ->
@@ -153,8 +152,10 @@ eb.utils.relativeArguments = (args, cwd) ->
     return eb.utils.relativePath(arg, cwd)
   )
 
-eb.utils.resolvePath = (target, cwd) ->
-  target = eb.utils.safeRequireResolve(target, cwd)
+eb.utils.resolvePath = (target, cwd, skip_require) ->
+  is_file = target.search(/^file:\/\//) >= 0
+  target = target.replace(/^file:\/\//, '') if is_file
+  target = eb.utils.safeRequireResolve(target, cwd) unless (skip_require or is_file)
   return target if (target.substr(0, process.env.HOME.length) is process.env.HOME)      # already resolved
   return target if cwd and (target.substr(0, cwd.length) is cwd)                        # already resolved
 

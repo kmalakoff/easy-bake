@@ -298,11 +298,11 @@ class eb.Oven
       package_path = path.join(@YAML_dir, 'packages', 'npm')
       package_path = @YAML_dir unless path.existsSync(package_path) # fallback to this project
 
-      # CONVENTION: safe guard...do not publish packages that end in _dev or missing the main file
+      # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
       package_desc_path = path.join(package_path, 'package.json')
       (console.log("no package.json found for publishNPM: #{package_desc_path.replace(@YAML_dir, '')}"); return) unless path.existsSync(package_desc_path) # fallback to this project
       package_desc = require(package_desc_path)
-      (console.log("skipping publishnpm for: #{package_desc_path} (name trails with '_dev')"); return) if package_desc.name.search(/\_dev$/) >= 0
+      (console.log("skipping publishnpm for: #{package_desc_path} (name starts with '_')"); return) if package_desc.name.search(/^_/) >= 0
       (console.log("skipping publishnpm for: #{package_desc_path} (main file missing...do you need to build it?)"); return) unless path.existsSync(path.join(package_path, package_desc.main))
 
       git_command = new eb.command.PublishNPM({force: options.force, cwd: package_path})

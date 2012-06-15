@@ -104,7 +104,7 @@ class eb.command.Bundle
     catch e
       throw e if e.code isnt 'EEXIST'
 
-    # do the copy
+    # start the bundle
     bundle = """
       (function() {
         // a require implementation doesn't already exist
@@ -121,25 +121,37 @@ class eb.command.Bundle
           };
           this.require.define = function(obj) {
             for (var module_name in obj) {
-  modules[module_name] = {loader: obj[module_name]};
+              modules[module_name] = {loader: obj[module_name]};
             };
           };
         }\n
       """
-    for module_name, file of @entries
-      pathed_file = eb.utils.resolvePath(file, @command_options.cwd)
-      try
-        file_contents = fs.readFileSync(pathed_file, 'utf8')
-      catch e
-        console.log "couldn't bundle #{file}. Does it exist?"
-      bundle += """
-        this.require.define({
-          '#{module_name}': function(exports, require, module) {\n#{file_contents}\n}
-        });\n
-        """
-    bundle += """
-      })(this);
-      """
+    for module_name, entry of @entries
+      # publish symbols
+      if module_name is '_publish'
+        for module_name, symbol of entry
+          bundle += "if (!this['#{symbol}']) {this['#{symbol}'] = this.require('#{module_name}');}\n"
+
+      # publish symbols
+      else if module_name is '_load'
+        for module_name in entry
+          bundle += "this.require('#{module_name}');\n"
+
+      # embed a file
+      else
+        pathed_file = eb.utils.resolvePath(entry, @command_options.cwd)
+        try
+          file_contents = fs.readFileSync(pathed_file, 'utf8')
+        catch e
+          console.log "couldn't bundle #{entry}. Does it exist?"
+        bundle += """
+          this.require.define({
+            '#{module_name}': function(exports, require, module) {\n#{file_contents}\n}
+          });\n
+          """
+
+    bundle += "})(this);"
+
     fs.writeFileSync(@target(), bundle, 'utf8')
     timeLog("bundled #{eb.utils.relativePath(@target(), @command_options.cwd)}")
     callback?(0, @)
