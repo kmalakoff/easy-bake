@@ -41,29 +41,27 @@ Here are the options with the relevant commands:
 
 - **-s**/**--silent** (all): does not output messages to the console (unless errors occur)
 
-Sample YAML
+Sample Config File
 -----------------------
+
+Here is an example of a CoffeeScript config file (JavaScript is also supported):
 
 ```
 library:
-  files:
-    - src/easy-bake.coffee
+  files: 'src/easy-bake.coffee'
 
 lib_test_runners:
-  output: ../../lib/test_runners
-  directories:
-    - src/test_runners
+  output: '../../lib/test_runners'
+  directories: 'src/test_runners'
 
 tests:
-  output: build
+  output: 'build'
   bare: true
-  directories:
-    - test/easy-bake_core
+  directories: 'test/easy-bake_core'
   modes:
     test:
-      command: nodeunit
-      files:
-        - '**/*.js'
+      command: 'nodeunit'
+      files: '**/*.js'
 ```
 
 ###Directories vs Files
@@ -74,17 +72,17 @@ For example, because directories are only specified in this case, the full direc
 
 ```
 my_set_hierarchical:
-  output: ../js
-  directories: ['my_directory']
+  output: '../js'
+  directories: 'my_directory'
 ```
 
 Whereas, by specifying the files, you can compile them all into the output directory:
 
 ```
 my_set_flat:
-  output: ../js
-  directories: ['my_directory']
-  files: ['**/*.coffee']
+  output: '../js'
+  directories: 'my_directory'
+  files: '**/*.coffee'
 ```
 
 So if the hierarchy is like:
@@ -129,35 +127,32 @@ For example, the output directory in this example is resolved to be the same dir
 
 ```
 lib_test_runners:
-  output: ../../lib/test_runners
-  directories:
-    - src/test_runners
+  output: '../../lib/test_runners'
+  directories: 'src/test_runners'
 ```
 
 Whereas, the output in this case will be in a new folder under 'test/easy-bake_core' (output to 'test/easy-bake_core/build'):
 
 ```
 tests:
-  output: build
+  output: 'build'
   bare: true
-  directories:
-    - test/easy-bake_core
+  directories: 'test/easy-bake_core'
 ```
 
 
 Project Configuration
 -----------------------
 
-It is best to preinstall a specific version of easy-bake in your package.json (preinstall so it is installed before dependent packages that also use it and a specific version until the yaml format is locked at a major release):
+It is best to preinstall a specific version of easy-bake in your package.json (to lock a specific version until the configuration format is locked at a major release):
 
 ```
 "scripts": {
-  "preinstall": "npm install easy-bake@0.1.2",
   "postinstall": "cake postinstall"
 },
-
 "devDependencies": {
-  "coffee-script": ">=1.3.3"
+  "coffee-script": ">=1.3.3",
+  "easy-bake": "0.1.2"
 },
 ```
 
@@ -171,14 +166,14 @@ Include it in your Cakefile:
 
 ```
 easybake = require('easy-bake')
-(new easybake.Oven('easy-bake-config.yml')).publishTasks()
+(new easybake.Oven('easy-bake-config.coffee')).publishTasks()
 ```
 
 or if you want finer control:
 
 ```
 easybake = require('easy-bake')
-oven = (new easybake.Oven('easy-bake-config.yml')).publishOptions()
+oven = (new easybake.Oven('easy-bake-config.coffee')).publishOptions()
 
 task 'build', 'Build library and tests', (options) -> myBuildFunction(); oven.build(options)
 task 'postinstall', 'Called by npm after installing library', (options) -> myPostInstallFunction(); oven.postinstall(options)
@@ -199,7 +194,6 @@ If you are using TravisCI, you should add something like this to your project.js
 
 ```
 "scripts": {
-  "preinstall": "npm install easy-bake@0.1.2",
   "postinstall": "cake postinstall",
   "test": "cake -c -b test"
 },
@@ -221,17 +215,17 @@ and add test options to the set you want to test:
 
 ```
 some_testing_group:
-  output: build
-  directories:
-    - test/some_tests
-    - test/some_more_tests
+  output: 'build'
+  directories: [
+    'test/some_tests'
+    'test/some_more_tests'
+  ]
   modes:
     test:
-      command: phantomjs
-      runner: phantomjs-qunit-runner.js
+      command: 'phantomjs'
+      runner: 'phantomjs-qunit-runner.js'
       args: [60000]
-      files:
-        - **/*.html
+      files: '**/*.html'
 ```
 
 
@@ -244,11 +238,9 @@ some_testing_group:
   ...
   modes:
     test:
-      command: phantomjs
-      runner: phantomjs-qunit-runner.js
-      args: [60000]
-    files:
-      - **/*.html
+      command: 'phantomjs'
+      runner: 'phantomjs-qunit-runner.js'
+      files: '**/*.html'
 ```
 
 **Note:** currently the library only has a test-runner for phantomjs-qunit-runner.js and phantomjs-jasmine-runner.js. Feel free to add more and to submit a pull request.
@@ -269,9 +261,8 @@ some_testing_group:
   ...
   modes:
     test:
-      command: nodeunit
-    files:
-      - **/*.js
+      command: 'nodeunit'
+      files: '**/*.js'
 ```
 
 

@@ -40,14 +40,14 @@
   };
 
   eb.utils.extractSetCommands = function(set_options, queue, cwd) {
-    var command, command_args, command_name, components, _i, _len, _ref, _results;
+    var command, command_args, command_name, commands, components, _i, _len, _results;
     if (!set_options.commands) {
       return;
     }
-    _ref = set_options.commands;
+    commands = _.isString(set_options.commands) ? [set_options.commands] : set_options.commands;
     _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      command = _ref[_i];
+    for (_i = 0, _len = commands.length; _i < _len; _i++) {
+      command = commands[_i];
       if (_.isObject(command)) {
         command_name = command.command;
         command_args = command.args;
@@ -92,8 +92,17 @@
     if (!directories) {
       return file_groups;
     }
+    if (_.isString(directories)) {
+      directories = [directories];
+    }
     files = set_options.hasOwnProperty('files') ? set_options.files : null;
+    if (files && _.isString(files)) {
+      files = [files];
+    }
     no_files_ok = set_options.hasOwnProperty('no_files_ok') ? set_options.no_files_ok : void 0;
+    if (no_files_ok && _.isString(no_files_ok)) {
+      no_files_ok = [no_files_ok];
+    }
     for (_i = 0, _len = directories.length; _i < _len; _i++) {
       unpathed_dir = directories[_i];
       directory = eb.utils.resolvePath(unpathed_dir, cwd, true);

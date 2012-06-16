@@ -322,6 +322,9 @@
             bundle += "if (!this['" + symbol + "']) {this['" + symbol + "'] = this.require('" + module_name + "');}\n";
           }
         } else if (module_name === '_load') {
+          if (_.isString(entry)) {
+            entry = [entry];
+          }
           for (_i = 0, _len = entry.length; _i < _len; _i++) {
             module_name = entry[_i];
             bundle += "this.require('" + module_name + "');\n";

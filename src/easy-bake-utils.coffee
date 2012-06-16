@@ -24,8 +24,9 @@ eb.utils.extractSetOptions = (set, mode, defaults) ->
 
 eb.utils.extractSetCommands = (set_options, queue, cwd) ->
   return unless set_options.commands
+  commands = if _.isString(set_options.commands) then [set_options.commands] else set_options.commands
 
-  for command in set_options.commands
+  for command in commands
     # the command is named
     if _.isObject(command)
       command_name = command.command
@@ -52,8 +53,11 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   directories = if set_options.hasOwnProperty('directories') then set_options.directories else (if set_options.files then [cwd] else null)
   return file_groups unless directories # nothing to search
 
+  directories  = [directories] if _.isString(directories) # convert optional directory array
   files = if set_options.hasOwnProperty('files') then set_options.files else null
+  files = [files] if files and _.isString(files) # convert optional files array
   no_files_ok = if set_options.hasOwnProperty('no_files_ok') then set_options.no_files_ok
+  no_files_ok = [no_files_ok] if no_files_ok and _.isString(no_files_ok) # convert optional no_files_ok array
 
   # build the list of files per directory if there are any matching files
   for unpathed_dir in directories

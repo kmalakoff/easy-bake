@@ -11,7 +11,6 @@ check_build = (test) ->
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core.js')), 'build: library root')
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '/build/core.js')), 'build: library relative')
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '.hidden/core.js')), 'build: library hidden')
-  test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'home/core.js')), 'build: library home')
 
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'lib/lib1.js')), 'build: utils 1')
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'lib/lib1.min.js')), 'build: utils 1 min')
@@ -25,7 +24,6 @@ check_clean = (test) ->
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core.js')), 'clean: library root')
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '/build/core.js')), 'clean: library relative')
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '.hidden/core.js')), 'clean: library hidden')
-  test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'home/core.js')), 'clean: library home')
 
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'lib/lib1.js')), 'clean: utils 1')
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'lib/lib1.min.js')), 'clean: utils 1 min')
@@ -41,7 +39,7 @@ exports.easy_bake_core =
     test.done()
 
   'Loading a YAML': (test) ->
-    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.yml'))
+    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
     oven.publishOptions().publishTasks()  # chaining
     test.done()
 
@@ -70,7 +68,7 @@ exports.easy_bake_core =
     )
 
   'Chaining': (test) ->
-    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.yml')).publishOptions()
+    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee')).publishOptions()
     command_queue = new eb.command.Queue()
     oven.clean({queue: command_queue}).build({queue: command_queue}).clean({queue: command_queue})
     command_queue.run(null, ->
@@ -84,14 +82,14 @@ exports.easy_bake_core =
       check_clean(test)
       test.done()
 
-    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.yml')).publishOptions()
+    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee')).publishOptions()
     task 'build', 'Build library and tests', (options) -> oven.build(options)
     task 'clean', 'Clean library and tests', (options) -> oven.clean(options, callback)
 
     global.invoke('clean')
 
   'Scoping Tests': (test) ->
-    scoped_oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.yml'))
+    scoped_oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
     scoped_oven.publishOptions().publishTasks({scope: 'fun'})  # chaining
 
     test.doesNotThrow((->global.invoke('fun.clean')), null, 'fun.clean task invoked')

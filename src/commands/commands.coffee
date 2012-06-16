@@ -134,6 +134,7 @@ class eb.command.Bundle
 
       # publish symbols
       else if module_name is '_load'
+        entry = [entry] if _.isString(entry)
         for module_name in entry
           bundle += "this.require('#{module_name}');\n"
 

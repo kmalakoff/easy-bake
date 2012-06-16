@@ -2,11 +2,11 @@
 {spawn} = require 'child_process'
 fs = require 'fs'
 path = require 'path'
+coffeescript = require 'coffee-script'
 require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
-yaml = require 'js-yaml'
 _ = require 'underscore'
 
-RESERVED_SETS = ['postinstall']
+RESERVED = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
 RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
@@ -18,13 +18,23 @@ eb.command = require './lib/easy-bake-commands'
 # helpers
 timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
 
+# add coffeescript compiling
+require.extensions['.coffee'] ?= (module, filename) ->
+  content = coffeescript.compile fs.readFileSync filename, 'utf8', {filename}
+  module._compile content, filename
+
 ##############################
 # The Oven
 ##############################
 class eb.Oven
-  constructor: (YAML_filename) ->
-    @YAML_dir = path.dirname(fs.realpathSync(YAML_filename))
-    @YAML = yaml.load(fs.readFileSync(YAML_filename, 'utf8'))
+  constructor: (config_filename) ->
+    config_pathed_filename = fs.realpathSync(config_filename)
+    @config_dir = path.dirname(config_pathed_filename)
+    try
+      @config = require(config_pathed_filename)
+    catch error
+      throw "couldn\'t load config #{config_filename}. #{error}"
+    console.log("warning: an empty config file was loaded: #{config_pathed_filename}") unless _.size(@config)
 
   publishOptions: ->
     global.option('-c', '--clean',     'cleans the project before running a command')
@@ -61,9 +71,9 @@ class eb.Oven
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # collect tests to run
-    for set_name, set of @YAML
+    for set_name, set of @config
       continue unless set_name is 'postinstall'
-      eb.utils.extractSetCommands(set, command_queue, @YAML_dir)
+      eb.utils.extractSetCommands(set, command_queue, @config_dir)
 
     # add footer
     if options.verbose
@@ -94,8 +104,8 @@ class eb.Oven
       pathed_targets = command.pathedTargets()
       for pathed_build_name in pathed_targets
         # add the command
-        command_queue.push(new eb.command.Remove(["#{pathed_build_name}"], {cwd: @YAML_dir}))
-        command_queue.push(new eb.command.Remove(["#{eb.utils.compressedName(pathed_build_name)}"], {cwd: @YAML_dir})) if command.isCompressed()
+        command_queue.push(new eb.command.Remove(["#{pathed_build_name}"], {cwd: @config_dir}))
+        command_queue.push(new eb.command.Remove(["#{eb.utils.compressedName(pathed_build_name)}"], {cwd: @config_dir})) if command.isCompressed()
 
     ###############################
     # cake postinstall
@@ -112,12 +122,12 @@ class eb.Oven
         args = []
         if command.args[0] is '-r'
           args.push('-r')
-          args.push(path.join(@YAML_dir, command.args[2]))
+          args.push(path.join(@config_dir, command.args[2]))
         else
-          args.push(path.join(@YAML_dir, command.args[1]))
+          args.push(path.join(@config_dir, command.args[1]))
 
         # add the command
-        command_queue.push(new eb.command.Remove(args, {cwd: @YAML_dir}))
+        command_queue.push(new eb.command.Remove(args, {cwd: @config_dir}))
 
     # add footer
     if options.verbose
@@ -141,12 +151,12 @@ class eb.Oven
       command_queue.push({run: (run_options, callback, queue) -> console.log("------------build #{if options.preview then 'started (PREVIEW)' else 'started'}------------"); callback?()})
 
     # collect files to build
-    for set_name, set of @YAML
-      continue if _.contains(RESERVED_SETS, set_name)
+    for set_name, set of @config
+      continue if _.contains(RESERVED, set_name)
 
       set_options = eb.utils.extractSetOptions(set, 'build')
 
-      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir, options)
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)
       for file_group in file_groups
         args = []
         args.push('-w') if options.watch
@@ -155,7 +165,7 @@ class eb.Oven
           args.push('-j')
           args.push(set_options.join)
         args.push('-o')
-        if set_options.output then args.push(set_options.output) else args.push(@YAML_dir)
+        if set_options.output then args.push(set_options.output) else args.push(@config_dir)
         args.push('-c')
         if file_group.files
           args = args.concat(_.map(file_group.files, (file) -> return path.join(file_group.directory, file)))
@@ -166,10 +176,10 @@ class eb.Oven
         command_queue.push(new eb.command.Coffee(args, {cwd: file_group.directory, compress: set_options.compress, test: options.test}))
 
       # add commands
-      eb.utils.extractSetCommands(set_options, command_queue, @YAML_dir)
+      eb.utils.extractSetCommands(set_options, command_queue, @config_dir)
 
       # add bundles
-      eb.utils.extractSetBundles(set_options, command_queue, @YAML_dir)
+      eb.utils.extractSetBundles(set_options, command_queue, @config_dir)
 
     # add footer
     if options.verbose
@@ -194,8 +204,8 @@ class eb.Oven
       test_queue.push({run: (run_options, callback, queue) -> console.log("------------test #{if options.preview then 'started (PREVIEW)' else 'started'}------------"); callback?()})
 
     # collect tests to run
-    for set_name, set of @YAML
-      continue if _.contains(RESERVED_SETS, set_name) or not (set.modes and set.modes.hasOwnProperty('test'))
+    for set_name, set of @config
+      continue if _.contains(RESERVED, set_name) or not (set.modes and set.modes.hasOwnProperty('test'))
 
       set_options = eb.utils.extractSetOptions(set, 'test')
 
@@ -204,7 +214,7 @@ class eb.Oven
         set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}"
         easy_bake_runner_used = true
 
-      file_groups = eb.utils.getOptionsFileGroups(set_options, @YAML_dir, options)
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)
       for file_group in file_groups
         throw "missing files for test in set: #{set_name}" unless file_group.files
 
@@ -219,10 +229,10 @@ class eb.Oven
             args.push(true) if args.length < (length_base + 2)
 
           # add the command
-          test_queue.push(new eb.command.RunTest(set_options.command, args, {cwd: @YAML_dir}))
+          test_queue.push(new eb.command.RunTest(set_options.command, args, {cwd: @config_dir}))
 
       # add commands
-      eb.utils.extractSetCommands(set, command_queue, @YAML_dir)
+      eb.utils.extractSetCommands(set, command_queue, @config_dir)
 
     # add footer
     unless options.preview
@@ -233,7 +243,7 @@ class eb.Oven
           for command in test_queue.commands()
             continue unless (command instanceof eb.command.RunTest)
             total_error_count += if command.exitCode() then 1 else 0
-            console.log("#{if command.exitCode() then '✖' else '✔'} #{eb.utils.relativePath(command.fileName(), @YAML_dir)}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
+            console.log("#{if command.exitCode() then '✖' else '✔'} #{eb.utils.relativePath(command.fileName(), @config_dir)}#{if command.exitCode() then (' (exit code: ' + command.exitCode() + ')') else ''}")
           console.log("--------------------------------------")
           console.log(if total_error_count then "All tests ran with with #{total_error_count} error(s)" else "All tests ran successfully!")
           console.log("--------------------------------------")
@@ -266,7 +276,7 @@ class eb.Oven
           console.log("publishgit aborted due to #{queue.errorCount()} error(s)")
           callback?(queue.errorCount()); return
 
-      git_command = new eb.command.PublishGit({cwd: @YAML_dir})
+      git_command = new eb.command.PublishGit({cwd: @config_dir})
       git_command.run(options, (code) ->
         console.log("publishgit completed with #{code} error(s)") unless options.verbose
         callback?(code)
@@ -295,12 +305,12 @@ class eb.Oven
           callback?(queue.errorCount()); return
 
       # CONVENTION: try a nested package in the form 'packages/npm' first
-      package_path = path.join(@YAML_dir, 'packages', 'npm')
-      package_path = @YAML_dir unless path.existsSync(package_path) # fallback to this project
+      package_path = path.join(@config_dir, 'packages', 'npm')
+      package_path = @config_dir unless path.existsSync(package_path) # fallback to this project
 
       # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
       package_desc_path = path.join(package_path, 'package.json')
-      (console.log("no package.json found for publishNPM: #{package_desc_path.replace(@YAML_dir, '')}"); return) unless path.existsSync(package_desc_path) # fallback to this project
+      (console.log("no package.json found for publishNPM: #{package_desc_path.replace(@config_dir, '')}"); return) unless path.existsSync(package_desc_path) # fallback to this project
       package_desc = require(package_desc_path)
       (console.log("skipping publishnpm for: #{package_desc_path} (name starts with '_')"); return) if package_desc.name.search(/^_/) >= 0
       (console.log("skipping publishnpm for: #{package_desc_path} (main file missing...do you need to build it?)"); return) unless path.existsSync(path.join(package_path, package_desc.main))
