@@ -607,8 +607,7 @@
         options = {};
       }
       local_queue = new eb.command.Queue();
-      local_queue.push(new eb.command.RunCommand('git', ['add', '.'], this.command_options));
-      local_queue.push(new eb.command.RunCommand('git', ['rm', '$(git ls-files --deleted)'], this.command_options));
+      local_queue.push(new eb.command.RunCommand('git', ['add', '-A'], this.command_options));
       local_queue.push(new eb.command.RunCommand('git', ['commit'], this.command_options));
       local_queue.push(new eb.command.RunCommand('git', ['push'], this.command_options));
       return local_queue.run(options, function(queue) {

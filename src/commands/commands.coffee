@@ -285,8 +285,7 @@ class eb.command.PublishGit
   constructor: (@command_options={}) ->
   run: (options={}, callback) ->
     local_queue = new eb.command.Queue()
-    local_queue.push(new eb.command.RunCommand('git', ['add', '.'], @command_options))
-    local_queue.push(new eb.command.RunCommand('git', ['rm', '$(git ls-files --deleted)'], @command_options))
+    local_queue.push(new eb.command.RunCommand('git', ['add', '-A'], @command_options))
     local_queue.push(new eb.command.RunCommand('git', ['commit'], @command_options))
     local_queue.push(new eb.command.RunCommand('git', ['push'], @command_options))
     local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
