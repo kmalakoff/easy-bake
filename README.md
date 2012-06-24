@@ -9,7 +9,7 @@
                      `---'
 ````
 
-EasyBake provides CoffeeScript-based Cakefile helpers for common CoffeeScript library packaging functionality.
+EasyBake provides Coffeescript config file-based Cakefile helpers for common CoffeeScript library packaging functionality (build & joining, headless testing, etc).
 
 
 Commands Supplied by EasyBake
