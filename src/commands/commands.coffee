@@ -124,6 +124,9 @@ class eb.command.Bundle
               modules[module_name] = {loader: obj[module_name]};
             };
           };
+          this.require.resolve = function(module_name) {
+            return !!modules[module_name] ? module_name : null;
+          };
         }\n
       """
     for module_name, entry of @entries

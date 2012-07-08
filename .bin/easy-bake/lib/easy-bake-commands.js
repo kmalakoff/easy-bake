@@ -312,7 +312,7 @@
           throw e;
         }
       }
-      bundle = "(function() {\n  // a require implementation doesn't already exist\n  if (!this.require) {\n    var root = this;\n    var modules = {};\n    this.require = function(module_name) {\n      if (!modules.hasOwnProperty(module_name)) throw \"required module missing: \" + module_name;\n      if (!modules[module_name].exports) {\n        modules[module_name].exports = {};\n        modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);\n      }\n      return modules[module_name].exports;\n    };\n    this.require.define = function(obj) {\n      for (var module_name in obj) {\n        modules[module_name] = {loader: obj[module_name]};\n      };\n    };\n  }\n";
+      bundle = "(function() {\n  // a require implementation doesn't already exist\n  if (!this.require) {\n    var root = this;\n    var modules = {};\n    this.require = function(module_name) {\n      if (!modules.hasOwnProperty(module_name)) throw \"required module missing: \" + module_name;\n      if (!modules[module_name].exports) {\n        modules[module_name].exports = {};\n        modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);\n      }\n      return modules[module_name].exports;\n    };\n    this.require.define = function(obj) {\n      for (var module_name in obj) {\n        modules[module_name] = {loader: obj[module_name]};\n      };\n    };\n    this.require.resolve = function(module_name) {\n      return !!modules[module_name] ? module_name : null;\n    };\n  }\n";
       _ref = this.entries;
       for (module_name in _ref) {
         entry = _ref[module_name];

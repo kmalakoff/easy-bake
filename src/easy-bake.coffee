@@ -44,6 +44,7 @@ class eb.Oven
     global.option('-v', '--verbose',   'display additional information')
     global.option('-s', '--silent',    'does not output messages to the console (unless errors occur)')
     global.option('-f', '--force',     'forces the action to occur')
+    global.option('-q', '--quick',     'performs minimal task')
     @
 
   publishTasks: (options={}) ->
@@ -266,8 +267,9 @@ class eb.Oven
     command_queue.push(new eb.command.RunQueue(test_queue, 'publishgit'))
 
     # build a chain of commands
-    chain_options = _.defaults({queue: test_queue}, options)
-    @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
+    unless options.quick
+      chain_options = _.defaults({queue: test_queue}, options)
+      @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
     test_queue.push({run: (run_options, callback, queue) =>
 
       # don't run because the tests weren't successful
@@ -294,8 +296,9 @@ class eb.Oven
     command_queue.push(new eb.command.RunQueue(test_queue, 'publishNPM'))
 
     # build a chain of commands
-    chain_options = _.defaults({queue: test_queue}, options)
-    @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
+    unless options.quick
+      chain_options = _.defaults({queue: test_queue}, options)
+      @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
     test_queue.push({run: (run_options, callback, queue) =>
 
       # don't run because the tests weren't successful

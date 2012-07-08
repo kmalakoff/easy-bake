@@ -68,6 +68,7 @@
       global.option('-v', '--verbose', 'display additional information');
       global.option('-s', '--silent', 'does not output messages to the console (unless errors occur)');
       global.option('-f', '--force', 'forces the action to occur');
+      global.option('-q', '--quick', 'performs minimal task');
       return this;
     };
 
@@ -426,12 +427,14 @@
       command_queue = options.queue ? options.queue : new eb.command.Queue();
       test_queue = new eb.command.Queue();
       command_queue.push(new eb.command.RunQueue(test_queue, 'publishgit'));
-      chain_options = _.defaults({
-        queue: test_queue
-      }, options);
-      this.clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({
-        no_exit: true
-      }, chain_options));
+      if (!options.quick) {
+        chain_options = _.defaults({
+          queue: test_queue
+        }, options);
+        this.clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({
+          no_exit: true
+        }, chain_options));
+      }
       test_queue.push({
         run: function(run_options, callback, queue) {
           var git_command;
@@ -470,12 +473,14 @@
       command_queue = options.queue ? options.queue : new eb.command.Queue();
       test_queue = new eb.command.Queue();
       command_queue.push(new eb.command.RunQueue(test_queue, 'publishNPM'));
-      chain_options = _.defaults({
-        queue: test_queue
-      }, options);
-      this.clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({
-        no_exit: true
-      }, chain_options));
+      if (!options.quick) {
+        chain_options = _.defaults({
+          queue: test_queue
+        }, options);
+        this.clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({
+          no_exit: true
+        }, chain_options));
+      }
       test_queue.push({
         run: function(run_options, callback, queue) {
           var git_command, package_desc, package_desc_path, package_path;
