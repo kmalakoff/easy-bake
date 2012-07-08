@@ -9,7 +9,7 @@
                      `---'
 ````
 
-EasyBake provides YAML-based Cakefile helpers for common CoffeeScript library packaging functionality.
+EasyBake provides Coffeescript config file-based Cakefile helpers for common CoffeeScript library packaging functionality (build & joining, headless testing, etc).
 
 
 Commands Supplied by EasyBake
@@ -123,7 +123,7 @@ and for my_set_flat:
 
 All output directories are relative to a set's directory.
 
-For example, the output directory in this example is resolved to be the same directory as the YAML root because 'src/test_runners' is two directories down the hierarchy:
+For example, the output directory in this example is resolved to be the same directory as the CoffeeScript config file root because 'src/test_runners' is two directories down the hierarchy:
 
 ```
 lib_test_runners:
