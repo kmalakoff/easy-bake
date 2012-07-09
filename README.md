@@ -152,7 +152,7 @@ It is best to preinstall a specific version of easy-bake in your package.json (t
 },
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.2"
+  "easy-bake": "0.1.3"
 },
 ```
 
@@ -265,6 +265,13 @@ some_testing_group:
       files: '**/*.js'
 ```
 
+Release Notes
+-----------------------
+
+### 0.1.3
+- refactored functionality and spun off module-bundler project (and reversed arguments order of _publish)
+- made dependent on a previous version of easy-bake
+- allow an object + current working directory (cwd) instead of a filename to be used
 
 Building the library
 -----------------------

@@ -1,2 +1,2 @@
-easybake = require('./.bin/easy-bake/easy-bake')
+easybake = require('easy-bake')
 (new easybake.Oven('easy-bake-config.coffee')).publishTasks({})

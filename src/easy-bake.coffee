@@ -15,25 +15,33 @@ eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
 eb.utils = require './lib/easy-bake-utils'
 eb.command = require './lib/easy-bake-commands'
 
-# helpers
-timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
-
 # add coffeescript compiling
 require.extensions['.coffee'] ?= (module, filename) ->
   content = coffeescript.compile fs.readFileSync filename, 'utf8', {filename}
   module._compile content, filename
 
+# helpers
+timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
+
 ##############################
 # The Oven
 ##############################
 class eb.Oven
-  constructor: (config_filename) ->
-    config_pathed_filename = fs.realpathSync(config_filename)
-    @config_dir = path.dirname(config_pathed_filename)
-    try
-      @config = require(config_pathed_filename)
-    catch error
-      throw "couldn\'t load config #{config_filename}. #{error}"
+  constructor: (config, options={}) ->
+    if _.isString(config)
+      config_pathed_filename = fs.realpathSync(config)
+      @config_dir = path.dirname(config_pathed_filename)
+      try
+        @config = require(config_pathed_filename)
+      catch error
+        throw "couldn\'t load config #{config}. #{error}"
+    else
+      throw "options are missing current working directory (cwd)" unless options.cwd
+      @config = config
+      @config_dir = path.normalize(options.cwd)
+      length = @config_dir.length
+      @config_dir = @config_dir.slice(0,length-1) if @config_dir[length-1] is '/'
+
     console.log("warning: an empty config file was loaded: #{config_pathed_filename}") unless _.size(@config)
 
   publishOptions: ->
@@ -180,7 +188,7 @@ class eb.Oven
       eb.utils.extractSetCommands(set_options, command_queue, @config_dir)
 
       # add bundles
-      eb.utils.extractSetBundles(set_options, command_queue, @config_dir)
+      command_queue.push(new eb.command.Bundle(set_options.bundles, {cwd: @config_dir})) if set_options.bundles
 
     # add footer
     if options.verbose

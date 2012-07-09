@@ -5,6 +5,7 @@ _ = require 'underscore'
 wrench = require 'wrench'
 uglifyjs = require 'uglify-js'
 globber = require 'glob-whatev'
+mb = require 'module-bundler'
 
 ##############################
 # Commands
@@ -88,81 +89,26 @@ class eb.command.Copy
     callback?(0, @)
 
 class eb.command.Bundle
-  constructor: (@bundle_name, @entries, @command_options={}) ->
-  target: -> return @bundle_name
-
+  constructor: (@entries, @command_options={}) ->
   run: (options={}, callback) ->
     # display
     if options.preview or options.verbose
-      console.log("bundle #{@bundle_name} #{JSON.stringify(@entries)}")
+      for bundle_filename, config of @entries
+        console.log("bundle #{bundle_filename} #{JSON.stringify(config)}")
       (callback?(0, @); return) if options.preview
 
-    # make the destination directory
-    try
-      target_dir = path.dirname(@target())
-      wrench.mkdirSyncRecursive(target_dir, 0o0777) unless path.existsSync(target_dir)
-    catch e
-      throw e if e.code isnt 'EEXIST'
-
-    # start the bundle
-    bundle = """
-      (function() {
-        // a require implementation doesn't already exist
-        if (!this.require) {
-          var root = this;
-          var modules = {};
-          this.require = function(module_name) {
-            if (!modules.hasOwnProperty(module_name)) throw "required module missing: " + module_name;
-            if (!modules[module_name].exports) {
-              modules[module_name].exports = {};
-              modules[module_name].loader.call(root, modules[module_name].exports, this.require, modules[module_name]);
-            }
-            return modules[module_name].exports;
-          };
-          this.require.define = function(obj) {
-            for (var module_name in obj) {
-              modules[module_name] = {loader: obj[module_name]};
-            };
-          };
-          this.require.resolve = function(module_name) {
-            return !!modules[module_name] ? module_name : null;
-          };
-        }\n
-      """
-    for module_name, entry of @entries
-      # publish symbols
-      if module_name is '_publish'
-        for module_name, symbol of entry
-          bundle += "if (!this['#{symbol}']) {this['#{symbol}'] = this.require('#{module_name}');}\n"
-
-      # publish symbols
-      else if module_name is '_load'
-        entry = [entry] if _.isString(entry)
-        for module_name in entry
-          bundle += "this.require('#{module_name}');\n"
-
-      # embed a file
+    # success
+    for bundle_filename, config of @entries
+      if mb.writeBundleSync(bundle_filename, config, {cwd: @command_options.cwd})
+        timeLog("bundled #{eb.utils.relativePath(bundle_filename, @command_options.cwd)}")
       else
-        pathed_file = eb.utils.resolvePath(entry, @command_options.cwd)
-        try
-          file_contents = fs.readFileSync(pathed_file, 'utf8')
-        catch e
-          console.log "couldn't bundle #{entry}. Does it exist?"
-        bundle += """
-          this.require.define({
-            '#{module_name}': function(exports, require, module) {\n#{file_contents}\n}
-          });\n
-          """
-
-    bundle += "})(this);"
-
-    fs.writeFileSync(@target(), bundle, 'utf8')
-    timeLog("bundled #{eb.utils.relativePath(@target(), @command_options.cwd)}")
+        timeLog("failed to bundle #{eb.utils.relativePath(bundle_filename, @command_options.cwd)}")
     callback?(0, @)
 
 class eb.command.Coffee
-  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
-  targetDirectory: -> return eb.utils.safePathNormalize(if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else '')
+  constructor: (args=[], @command_options={}) ->
+    @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  targetDirectory: -> return mb.pathNormalizeSafe(if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else '')
   pathedTargets: ->
     pathed_targets = []
     output_directory = @targetDirectory()
@@ -170,14 +116,14 @@ class eb.command.Coffee
     for source_name in output_names
       # files being compiled
       if source_name.match(/\.js$/) or source_name.match(/\.coffee$/)
-        pathed_targets.push(eb.utils.safePathNormalize("#{output_directory}/#{eb.utils.builtName(path.basename(source_name))}"))
+        pathed_targets.push(mb.pathNormalizeSafe("#{output_directory}/#{eb.utils.builtName(path.basename(source_name))}"))
 
       # directories being compiled
       else
         pathed_source_files = []
         globber.glob("#{source_name}/**/*.coffee").forEach((pathed_file) -> pathed_source_files.push(pathed_file.replace(source_name, '')))
         for pathed_source_file in pathed_source_files
-          pathed_targets.push(eb.utils.safePathNormalize("#{output_directory}#{eb.utils.builtName(pathed_source_file)}"))
+          pathed_targets.push(mb.pathNormalizeSafe("#{output_directory}#{eb.utils.builtName(pathed_source_file)}"))
     return pathed_targets
 
   isCompressed: -> return @command_options.compress
@@ -200,7 +146,8 @@ class eb.command.Coffee
         post_build_queue = new eb.command.Queue()
 
       for source_name in output_names
-        build_directory = eb.utils.resolvePath(output_directory, path.dirname(source_name))
+        build_directory = mb.resolveSafe(output_directory, {cwd: path.dirname(source_name)})
+        build_directory = output_directory unless build_directory
         pathed_build_name = "#{build_directory}/#{eb.utils.builtName(path.basename(source_name))}"
 
         if code is 0
@@ -261,7 +208,7 @@ class eb.command.RunTest
     scoped_command = if @usingPhantomJS() then @command else path.join('node_modules/.bin', @command)
     scoped_args = _.clone(@args)
     if @usingPhantomJS()
-      scoped_args[1] = "file://#{eb.utils.resolvePath(@args[1], @command_options.cwd)}" if @args[1].search('file://') isnt 0
+      scoped_args[1] = "file://#{mb.resolveSafe(@args[1], {cwd: @command_options.cwd})}" if @args[1].search('file://') isnt 0
     else
       scoped_args = eb.utils.relativeArguments(scoped_args, @command_options.cwd)
 

@@ -30,10 +30,6 @@
 
   eb.command = require('./lib/easy-bake-commands');
 
-  timeLog = function(message) {
-    return console.log("" + ((new Date).toLocaleTimeString()) + " - " + message);
-  };
-
   if ((_ref = (_base = require.extensions)['.coffee']) == null) {
     _base['.coffee'] = function(module, filename) {
       var content;
@@ -44,16 +40,35 @@
     };
   }
 
+  timeLog = function(message) {
+    return console.log("" + ((new Date).toLocaleTimeString()) + " - " + message);
+  };
+
   eb.Oven = (function() {
 
-    function Oven(config_filename) {
-      var config_pathed_filename;
-      config_pathed_filename = fs.realpathSync(config_filename);
-      this.config_dir = path.dirname(config_pathed_filename);
-      try {
-        this.config = require(config_pathed_filename);
-      } catch (error) {
-        throw "couldn\'t load config " + config_filename + ". " + error;
+    function Oven(config, options) {
+      var config_pathed_filename, length;
+      if (options == null) {
+        options = {};
+      }
+      if (_.isString(config)) {
+        config_pathed_filename = fs.realpathSync(config);
+        this.config_dir = path.dirname(config_pathed_filename);
+        try {
+          this.config = require(config_pathed_filename);
+        } catch (error) {
+          throw "couldn\'t load config " + config + ". " + error;
+        }
+      } else {
+        if (!options.cwd) {
+          throw "options are missing current working directory (cwd)";
+        }
+        this.config = config;
+        this.config_dir = path.normalize(options.cwd);
+        length = this.config_dir.length;
+        if (this.config_dir[length - 1] === '/') {
+          this.config_dir = this.config_dir.slice(0, length - 1);
+        }
       }
       if (!_.size(this.config)) {
         console.log("warning: an empty config file was loaded: " + config_pathed_filename);
@@ -300,7 +315,11 @@
           }));
         }
         eb.utils.extractSetCommands(set_options, command_queue, this.config_dir);
-        eb.utils.extractSetBundles(set_options, command_queue, this.config_dir);
+        if (set_options.bundles) {
+          command_queue.push(new eb.command.Bundle(set_options.bundles, {
+            cwd: this.config_dir
+          }));
+        }
       }
       if (options.verbose) {
         command_queue.push({
