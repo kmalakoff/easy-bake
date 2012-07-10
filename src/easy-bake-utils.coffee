@@ -51,8 +51,6 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   directories  = [directories] if _.isString(directories) # convert optional directory array
   files = if set_options.hasOwnProperty('files') then set_options.files else null
   files = [files] if files and _.isString(files) # convert optional files array
-  no_files_ok = if set_options.hasOwnProperty('no_files_ok') then set_options.no_files_ok
-  no_files_ok = [no_files_ok] if no_files_ok and _.isString(no_files_ok) # convert optional no_files_ok array
 
   # build the list of files per directory if there are any matching files
   for unpathed_dir in directories
@@ -75,8 +73,8 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
 
       target_files = target_files.concat(found_files)  # add these found files
       continue if found_files.length # something found
-      if not no_files_ok or not _.contains(no_files_ok, rel_directory)
-        console.log("warning: file not found #{search_query}. If you are previewing a test, build your project before previewing.") # unless options.preview
+
+      console.log("warning: file not found #{search_query}. If you are previewing a test, build your project before previewing.") # unless options.preview
 
     # nothing found
     continue if not target_files.length

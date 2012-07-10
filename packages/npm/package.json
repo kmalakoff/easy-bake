@@ -17,9 +17,13 @@
     "module-bundler": ">=0.1.0",
     "glob-whatev": ">=0.1.6",
     "wrench": ">=1.3.9",
-    "uglify-js": ">=1.3.0"
+    "uglify-js": ">=1.3.0",
+    "elementtree": ">=0.1.1"
   },
 
   "main"          : "easy-bake.js",
-  "version"       : "0.1.4"
+  "bin":          {
+    "nuget":     "./bin/nuget"
+  },
+  "version"       : "0.1.5"
 }

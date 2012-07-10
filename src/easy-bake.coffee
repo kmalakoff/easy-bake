@@ -55,13 +55,15 @@ class eb.Oven
     @publishOptions()
 
     tasks =
-      postinstall:  ['Called by npm after installing library',  (options) => @postinstall(options)]
-      clean:        ['Remove generated JavaScript files',       (options) => @clean(options)]
-      build:        ['Build library and tests',                 (options) => @build(options)]
-      watch:        ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
-      test:         ['Test library',                            (options) => @test(options)]
-      publishgit:   ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @publishGit(options)]
-      publishnpm:   ['Cleans, builds, tests and if successful, runs npm commands to publish the project',  (options) => @publishNPM(options)]
+      postinstall:    ['Called by npm after installing library',  (options) => @postinstall(options)]
+      clean:          ['Remove generated JavaScript files',       (options) => @clean(options)]
+      build:          ['Build library and tests',                 (options) => @build(options)]
+      watch:          ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
+      test:           ['Test library',                            (options) => @test(options)]
+      publish_git:    ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @publishGit(options)]
+      publish_npm:    ['Cleans, builds, tests and if successful, runs npm commands to publish the project',  (options) => @publishNPM(options)]
+      publish_nuget:  ['Cleans, builds, tests and if successful, runs nuget commands to publish the project',  (options) => @publishNuGet(options)]
+      publish_all:    ['Cleans, builds, tests and if successful, commands to publish the project in all available repositories',  (options) => @publishAll(options)]
 
     # register and optionally scope the tasks
     task_names = if options.tasks then options.tasks else _.keys(tasks)
@@ -253,71 +255,66 @@ class eb.Oven
     command_queue.run(options, callback) unless options.queue
     @
 
-  publishGit: (options={}, callback) ->
+  publishPrepare: (options={}, callback, name, success_fn) ->
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     test_queue = new eb.command.Queue()
-    command_queue.push(new eb.command.RunQueue(test_queue, 'publishgit'))
+    command_queue.push(new eb.command.RunQueue(test_queue, name))
 
     # build a chain of commands
     unless options.quick
-      chain_options = _.defaults({queue: test_queue}, options)
-      @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
-    test_queue.push({run: (run_options, callback, queue) =>
+      test_options = _.defaults({queue: test_queue}, options)
+      delete test_options['quick']
+      @clean(test_options).postinstall(test_options).build(test_options).test(_.defaults({no_exit: true}, test_options))
+    test_queue.push({run: (run_options, local_callback, queue) =>
 
       # don't run because the tests weren't successful
       unless (options.preview or options.verbose)
         if queue.errorCount()
-          console.log("publishgit aborted due to #{queue.errorCount()} error(s)")
-          callback?(queue.errorCount()); return
+          console.log("#{name} aborted due to #{queue.errorCount()} error(s)")
+          local_callback?(queue.errorCount()); return
 
-      git_command = new eb.command.PublishGit({cwd: @config_dir})
-      git_command.run(options, (code) ->
-        console.log("publishgit completed with #{code} error(s)") unless options.verbose
-        callback?(code)
-      )
+      # let the command start
+      success_fn()
     })
 
     # run
     command_queue.run(options, callback) unless options.queue
     @
 
-  publishNPM: (options={}, callback) ->
-    command_queue = if options.queue then options.queue else new eb.command.Queue()
-
-    test_queue = new eb.command.Queue()
-    command_queue.push(new eb.command.RunQueue(test_queue, 'publishNPM'))
-
-    # build a chain of commands
-    unless options.quick
-      chain_options = _.defaults({queue: test_queue}, options)
-      @clean(chain_options).postinstall(chain_options).build(chain_options).test(_.defaults({no_exit: true}, chain_options))
-    test_queue.push({run: (run_options, callback, queue) =>
-
-      # don't run because the tests weren't successful
-      unless (options.preview or options.verbose)
-        if queue.errorCount()
-          console.log("publishnpm aborted due to #{queue.errorCount()} error(s)")
-          callback?(queue.errorCount()); return
-
-      # CONVENTION: try a nested package in the form 'packages/npm' first
-      package_path = path.join(@config_dir, 'packages', 'npm')
-      package_path = @config_dir unless path.existsSync(package_path) # fallback to this project
-
-      # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
-      package_desc_path = path.join(package_path, 'package.json')
-      (console.log("no package.json found for publishNPM: #{package_desc_path.replace(@config_dir, '')}"); return) unless path.existsSync(package_desc_path) # fallback to this project
-      package_desc = require(package_desc_path)
-      (console.log("skipping publishnpm for: #{package_desc_path} (name starts with '_')"); return) if package_desc.name.search(/^_/) >= 0
-      (console.log("skipping publishnpm for: #{package_desc_path} (main file missing...do you need to build it?)"); return) unless path.existsSync(path.join(package_path, package_desc.main))
-
-      git_command = new eb.command.PublishNPM({force: options.force, cwd: package_path})
-      git_command.run(options, (code) ->
-        console.log("publishgit completed with #{code} error(s)") unless options.verbose
-        callback?(code)
+  publishGit: (options={}, callback) ->
+    @publishPrepare(options, callback, 'publish_git', =>
+      command = new eb.command.PublishGit({cwd: @config_dir})
+      command.run(options, (code) =>
+        console.log("publish_git completed with #{code} error(s)") unless options.verbose
       )
-    })
+    )
+    @
 
-    # run
-    command_queue.run(options, callback) unless options.queue
+  publishNPM: (options={}, callback) ->
+    @publishPrepare(options, callback, 'publish_npm', =>
+      command = new eb.command.PublishNPM({cwd: @config_dir, force: options.force})
+      command.run(options, (code) =>
+        console.log("publish_npm completed with #{code} error(s)") unless options.verbose
+      )
+    )
+    @
+
+  publishNuGet: (options={}, callback) ->
+    @publishPrepare(options, callback, 'publish_nuget', =>
+      command = new eb.command.PublishNuGet({cwd: @config_dir, force: options.force})
+      command.run(options, (code) =>
+        console.log("publish_nuget completed with #{code} error(s)") unless options.verbose
+      )
+    )
+    @
+
+  publishAll: (options={}, callback) ->
+    @publishPrepare(options, callback, 'publish_all', =>
+      local_queue = new eb.command.Queue()
+      local_queue.push(new eb.command.PublishNPM({cwd: @config_dir, force: options.force}))
+      local_queue.push(new eb.command.PublishGit({cwd: @config_dir, force: options.force}))
+      local_queue.push(new eb.command.PublishNuGet({cwd: @config_dir, force: options.force}))
+      local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
+    )
     @
