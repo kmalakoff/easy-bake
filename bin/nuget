@@ -1,2 +1,2 @@
 #!/bin/sh
-/usr/bin/mono bin/NuGet.exe "$@"
+/usr/bin/mono ./NuGet.exe "$@"

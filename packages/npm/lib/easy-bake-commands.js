@@ -79,22 +79,6 @@
 
   })();
 
-  spawn = require('child_process').spawn;
-
-  fs = require('fs');
-
-  path = require('path');
-
-  _ = require('underscore');
-
-  wrench = require('wrench');
-
-  uglifyjs = require('uglify-js');
-
-  globber = require('glob-whatev');
-
-  mb = require('module-bundler');
-
   eb.command.RunQueue = (function() {
 
     function RunQueue(run_queue, name) {
@@ -124,6 +108,22 @@
     return RunQueue;
 
   })();
+
+  spawn = require('child_process').spawn;
+
+  fs = require('fs');
+
+  path = require('path');
+
+  _ = require('underscore');
+
+  wrench = require('wrench');
+
+  uglifyjs = require('uglify-js');
+
+  globber = require('glob-whatev');
+
+  mb = require('module-bundler');
 
   eb.command.RunCommand = (function() {
 
@@ -287,98 +287,6 @@
     };
 
     return Copy;
-
-  })();
-
-  eb.command.Bundle = (function() {
-
-    function Bundle(entries, command_options) {
-      this.entries = entries;
-      this.command_options = command_options != null ? command_options : {};
-    }
-
-    Bundle.prototype.run = function(options, callback) {
-      var bundle_filename, config, _ref, _ref1;
-      if (options == null) {
-        options = {};
-      }
-      if (options.preview || options.verbose) {
-        _ref = this.entries;
-        for (bundle_filename in _ref) {
-          config = _ref[bundle_filename];
-          console.log("bundle " + bundle_filename + " " + (JSON.stringify(config)));
-        }
-        if (options.preview) {
-          if (typeof callback === "function") {
-            callback(0, this);
-          }
-          return;
-        }
-      }
-      _ref1 = this.entries;
-      for (bundle_filename in _ref1) {
-        config = _ref1[bundle_filename];
-        if (mb.writeBundleSync(bundle_filename, config, {
-          cwd: this.command_options.cwd
-        })) {
-          timeLog("bundled " + (eb.utils.relativePath(bundle_filename, this.command_options.cwd)));
-        } else {
-          timeLog("failed to bundle " + (eb.utils.relativePath(bundle_filename, this.command_options.cwd)));
-        }
-      }
-      return typeof callback === "function" ? callback(0, this) : void 0;
-    };
-
-    return Bundle;
-
-  })();
-
-  eb.command.ModuleBundle = (function() {
-
-    function ModuleBundle(args, command_options) {
-      if (args == null) {
-        args = [];
-      }
-      this.command_options = command_options != null ? command_options : {};
-      this.args = eb.utils.resolveArguments(args, this.command_options.cwd);
-    }
-
-    ModuleBundle.prototype.run = function(options, callback) {
-      var filename, scoped_command, _i, _len, _ref;
-      if (options == null) {
-        options = {};
-      }
-      scoped_command = 'node_modules/easy-bake/node_modules/.bin/mbundle';
-      if (options.preview || options.verbose) {
-        console.log("" + scoped_command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
-        if (options.preview) {
-          if (typeof callback === "function") {
-            callback(0, this);
-          }
-          return;
-        }
-      }
-      try {
-        _ref = this.args;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          filename = _ref[_i];
-          if (mb.writeBundlesSync(filename, {
-            cwd: this.command_options.cwd
-          })) {
-            if (!options.silent) {
-              timeLog("bundled " + filename);
-            }
-          } else {
-            if (!options.silent) {
-              timeLog("failed to bundle " + filename);
-            }
-          }
-        }
-        return typeof callback === "function" ? callback(0, this) : void 0;
-      } catch (_error) {}
-    };
-
-    return ModuleBundle;
 
   })();
 
@@ -635,6 +543,98 @@
 
   })();
 
+  eb.command.Bundle = (function() {
+
+    function Bundle(entries, command_options) {
+      this.entries = entries;
+      this.command_options = command_options != null ? command_options : {};
+    }
+
+    Bundle.prototype.run = function(options, callback) {
+      var bundle_filename, config, _ref, _ref1;
+      if (options == null) {
+        options = {};
+      }
+      if (options.preview || options.verbose) {
+        _ref = this.entries;
+        for (bundle_filename in _ref) {
+          config = _ref[bundle_filename];
+          console.log("bundle " + bundle_filename + " " + (JSON.stringify(config)));
+        }
+        if (options.preview) {
+          if (typeof callback === "function") {
+            callback(0, this);
+          }
+          return;
+        }
+      }
+      _ref1 = this.entries;
+      for (bundle_filename in _ref1) {
+        config = _ref1[bundle_filename];
+        if (mb.writeBundleSync(bundle_filename, config, {
+          cwd: this.command_options.cwd
+        })) {
+          timeLog("bundled " + (eb.utils.relativePath(bundle_filename, this.command_options.cwd)));
+        } else {
+          timeLog("failed to bundle " + (eb.utils.relativePath(bundle_filename, this.command_options.cwd)));
+        }
+      }
+      return typeof callback === "function" ? callback(0, this) : void 0;
+    };
+
+    return Bundle;
+
+  })();
+
+  eb.command.ModuleBundle = (function() {
+
+    function ModuleBundle(args, command_options) {
+      if (args == null) {
+        args = [];
+      }
+      this.command_options = command_options != null ? command_options : {};
+      this.args = eb.utils.resolveArguments(args, this.command_options.cwd);
+    }
+
+    ModuleBundle.prototype.run = function(options, callback) {
+      var filename, scoped_command, _i, _len, _ref;
+      if (options == null) {
+        options = {};
+      }
+      scoped_command = 'node_modules/easy-bake/node_modules/.bin/mbundle';
+      if (options.preview || options.verbose) {
+        console.log("" + scoped_command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
+        if (options.preview) {
+          if (typeof callback === "function") {
+            callback(0, this);
+          }
+          return;
+        }
+      }
+      try {
+        _ref = this.args;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          filename = _ref[_i];
+          if (mb.writeBundlesSync(filename, {
+            cwd: this.command_options.cwd
+          })) {
+            if (!options.silent) {
+              timeLog("bundled " + filename);
+            }
+          } else {
+            if (!options.silent) {
+              timeLog("failed to bundle " + filename);
+            }
+          }
+        }
+        return typeof callback === "function" ? callback(0, this) : void 0;
+      } catch (_error) {}
+    };
+
+    return ModuleBundle;
+
+  })();
+
   eb.command.PublishGit = (function() {
 
     function PublishGit(command_options) {
@@ -682,6 +682,29 @@
     };
 
     return PublishNPM;
+
+  })();
+
+  eb.command.PublishNuGet = (function() {
+
+    function PublishNuGet(command_options) {
+      this.command_options = command_options != null ? command_options : {};
+    }
+
+    PublishNuGet.prototype.run = function(options, callback) {
+      var command, local_queue;
+      if (options == null) {
+        options = {};
+      }
+      local_queue = new eb.command.Queue();
+      command = fs.realpathSync('node_modules/easy-bake/bin/nuget');
+      local_queue.push(new eb.command.RunCommand(command, ['help'], this.command_options));
+      return local_queue.run(options, function(queue) {
+        return typeof callback === "function" ? callback(queue.errorCount(), this) : void 0;
+      });
+    };
+
+    return PublishNuGet;
 
   })();
 

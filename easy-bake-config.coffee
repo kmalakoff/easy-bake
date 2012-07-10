@@ -4,20 +4,19 @@ module.exports =
       'src/helpers.coffee'
       'src/easy-bake.coffee'
     ]
-    modes:
-      build:
-        commands: [
-          'cp easy-bake.js packages/npm/easy-bake.js'
-        ]
+    _build:
+      commands: [
+        'cp easy-bake.js packages/npm/easy-bake.js'
+        'cp -r bin packages/npm/bin'
+      ]
 
   lib_utils:
     output: 'lib'
     files: 'src/easy-bake-utils.coffee'
-    modes:
-      build:
-        commands: [
-          'cp lib/easy-bake-utils.js packages/npm/lib/easy-bake-utils.js'
-        ]
+    _build:
+      commands: [
+        'cp lib/easy-bake-utils.js packages/npm/lib/easy-bake-utils.js'
+      ]
 
   lib_commands:
     join: 'easy-bake-commands.js'
@@ -26,26 +25,28 @@ module.exports =
       'src/helpers.coffee'
       'src/easy-bake-commands/queue.coffee'
       'src/easy-bake-commands/commands.coffee'
+      'src/easy-bake-commands/file-system-commands.coffee'
+      'src/easy-bake-commands/build-commands.coffee'
+      'src/easy-bake-commands/test-commands.coffee'
+      'src/easy-bake-commands/bundle-commands.coffee'
+      'src/easy-bake-commands/publish-commands.coffee'
     ]
-    modes:
-      build:
-        commands: [
-          'cp lib/easy-bake-commands.js packages/npm/lib/easy-bake-commands.js'
-        ]
+    _build:
+      commands: [
+        'cp lib/easy-bake-commands.js packages/npm/lib/easy-bake-commands.js'
+      ]
 
   lib_test_runners:
     output: '../../lib/test_runners'
     directories: 'src/test_runners'
-    modes:
-      build:
-        commands: [
-          'cp -r lib/test_runners packages/npm/lib/test_runners'
-        ]
+    _build:
+      commands: [
+        'cp -r lib/test_runners packages/npm/lib/test_runners'
+      ]
 
   tests:
     output: 'build'
     directories: 'test/core'
-    modes:
-      test:
-        command: 'nodeunit'
-        files: '**/*.js'
+    _test:
+      command: 'nodeunit'
+      files: '**/*.js'

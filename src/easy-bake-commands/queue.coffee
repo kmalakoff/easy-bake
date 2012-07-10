@@ -37,3 +37,14 @@ class eb.command.Queue
 
     # run or done
     if @_commands.length then @_commands[current_index].run(run_options, next, @) else done()
+
+class eb.command.RunQueue
+  constructor: (@run_queue, @name) -> @run_queue = new eb.command.Queue() unless @run_queue
+  queue: -> return @run_queue
+
+  run: (options={}, callback) ->
+    # display
+    console.log("running queue: #{@name}") if options.verbose
+
+    # execute
+    @run_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
