@@ -218,10 +218,10 @@
       _ref2 = postinstall_queue.commands();
       for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
         command = _ref2[_k];
-        if (!command.newReverseCommand) {
+        if (!command.createUndoCommand) {
           continue;
         }
-        command_queue.push(command.newReverseCommand());
+        command_queue.push(command.createUndoCommand());
       }
       if (options.verbose) {
         command_queue.push({
@@ -345,7 +345,7 @@
       _ref1 = this.config;
       for (set_name in _ref1) {
         set = _ref1[set_name];
-        if (set_name.startsWith('_')) {
+        if (set_name.startsWith('_') || !set.hasOwnProperty('_test')) {
           continue;
         }
         set_options = eb.utils.extractSetOptions(set, '_test');

@@ -278,8 +278,12 @@
       return typeof callback === "function" ? callback(0, this) : void 0;
     };
 
-    Copy.prototype.newReverseCommand = function() {
-      return new eb.command.Remove([this.target()], this.command_options);
+    Copy.prototype.createUndoCommand = function() {
+      if (this.args[0] === '-r') {
+        return new eb.command.Remove(['-r', this.target()], this.command_options);
+      } else {
+        return new eb.command.Remove([this.target()], this.command_options);
+      }
     };
 
     return Copy;
@@ -326,6 +330,55 @@
     };
 
     return Bundle;
+
+  })();
+
+  eb.command.ModuleBundle = (function() {
+
+    function ModuleBundle(args, command_options) {
+      if (args == null) {
+        args = [];
+      }
+      this.command_options = command_options != null ? command_options : {};
+      this.args = eb.utils.resolveArguments(args, this.command_options.cwd);
+    }
+
+    ModuleBundle.prototype.run = function(options, callback) {
+      var filename, scoped_command, _i, _len, _ref;
+      if (options == null) {
+        options = {};
+      }
+      scoped_command = 'node_modules/easy-bake/node_modules/.bin/mbundle';
+      if (options.preview || options.verbose) {
+        console.log("" + scoped_command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
+        if (options.preview) {
+          if (typeof callback === "function") {
+            callback(0, this);
+          }
+          return;
+        }
+      }
+      try {
+        _ref = this.args;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          filename = _ref[_i];
+          if (mb.writeBundlesSync(filename, {
+            cwd: this.command_options.cwd
+          })) {
+            if (!options.silent) {
+              timeLog("bundled " + filename);
+            }
+          } else {
+            if (!options.silent) {
+              timeLog("failed to bundle " + filename);
+            }
+          }
+        }
+        return typeof callback === "function" ? callback(0, this) : void 0;
+      } catch (_error) {}
+    };
+
+    return ModuleBundle;
 
   })();
 

@@ -151,7 +151,7 @@ It is best to preinstall a specific version of easy-bake in your package.json (t
 },
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.3"
+  "easy-bake": "0.1.3-pre"
 },
 ```
 
@@ -194,6 +194,9 @@ If you are using TravisCI, you should add something like this to your project.js
 ```
 "scripts": {
   "postinstall": "cake postinstall",
+  "clean": "cake clean",
+  "build": "cake build",
+  "watch": "cake watch",
   "test": "cake -c -b test"
 },
 ```

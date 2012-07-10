@@ -120,8 +120,8 @@ class eb.Oven
     @postinstall(_.defaults({clean: false, queue: postinstall_queue}, options))
 
     for command in postinstall_queue.commands()
-      continue unless command.newReverseCommand # there is a reverse
-      command_queue.push(command.newReverseCommand()) # add the command
+      continue unless command.createUndoCommand # there is a reverse
+      command_queue.push(command.createUndoCommand()) # add the command
 
     # add footer
     if options.verbose
@@ -199,7 +199,7 @@ class eb.Oven
 
     # collect tests to run
     for set_name, set of @config
-      continue if set_name.startsWith('_')
+      continue if set_name.startsWith('_') or not set.hasOwnProperty('_test')
 
       set_options = eb.utils.extractSetOptions(set, '_test')
       file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)

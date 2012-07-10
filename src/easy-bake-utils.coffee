@@ -38,6 +38,8 @@ eb.utils.extractSetCommands = (set_options, queue, cwd) ->
     # add the command
     if command_name is 'cp'
       queue.push(new eb.command.Copy(command_args, {cwd: cwd}))
+    else if command_name is 'mbundle'
+      queue.push(new eb.command.ModuleBundle(command_args, {cwd: cwd}))
     else
       queue.push(new eb.command.RunCommand(command_name, command_args, {cwd: cwd}))
 

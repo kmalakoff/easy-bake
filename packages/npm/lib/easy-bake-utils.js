@@ -59,6 +59,10 @@
         _results.push(queue.push(new eb.command.Copy(command_args, {
           cwd: cwd
         })));
+      } else if (command_name === 'mbundle') {
+        _results.push(queue.push(new eb.command.ModuleBundle(command_args, {
+          cwd: cwd
+        })));
       } else {
         _results.push(queue.push(new eb.command.RunCommand(command_name, command_args, {
           cwd: cwd
