@@ -88,6 +88,9 @@ class eb.command.Copy
     timeLog("copied #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
     callback?(0, @)
 
+  newReverseCommand: ->
+    return new eb.command.Remove([@target()], @command_options)
+
 class eb.command.Bundle
   constructor: (@entries, @command_options={}) ->
   run: (options={}, callback) ->

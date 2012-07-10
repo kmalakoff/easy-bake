@@ -4,22 +4,19 @@ eb.utils = require './easy-bake-utils'
 # export or create eb namespace
 eb.command = @eb.command = if (typeof(exports) != 'undefined') then exports else {}
 
-# helpers
-timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
-
 ##############################
 # Queue
 ##############################
 
 class eb.command.Queue
   constructor: ->
-    @commands_queue = []
+    @_commands = []
     @is_running = false
     @errors = []
 
-  commands: -> return @commands_queue
+  commands: -> return @_commands
   errorCount: -> return @errors.length
-  push: (command) -> @commands_queue.push(command)
+  push: (command) -> @_commands.push(command)
   run: (run_options, callback) ->
     throw 'queue is already running' if @is_running
 
@@ -36,7 +33,7 @@ class eb.command.Queue
       @errors.push({code: code, task: task}) if (code isnt 0) and (arguments.length isnt 0)
 
       # next or done
-      if (++current_index < @commands_queue.length) then@commands_queue[current_index].run(run_options, next, @) else done()
+      if (++current_index < @_commands.length) then@_commands[current_index].run(run_options, next, @) else done()
 
     # run or done
-    if @commands_queue.length then @commands_queue[current_index].run(run_options, next, @) else done()
+    if @_commands.length then @_commands[current_index].run(run_options, next, @) else done()

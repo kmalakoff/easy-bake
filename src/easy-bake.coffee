@@ -6,7 +6,6 @@ coffeescript = require 'coffee-script'
 require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
 _ = require 'underscore'
 
-RESERVED = ['postinstall']
 TEST_DEFAULT_TIMEOUT = 60000
 RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
@@ -19,9 +18,6 @@ eb.command = require './lib/easy-bake-commands'
 require.extensions['.coffee'] ?= (module, filename) ->
   content = coffeescript.compile fs.readFileSync filename, 'utf8', {filename}
   module._compile content, filename
-
-# helpers
-timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
 
 ##############################
 # The Oven
@@ -81,7 +77,7 @@ class eb.Oven
 
     # collect tests to run
     for set_name, set of @config
-      continue unless set_name is 'postinstall'
+      continue unless set_name is '_postinstall'
       eb.utils.extractSetCommands(set, command_queue, @config_dir)
 
     # add footer
@@ -121,22 +117,11 @@ class eb.Oven
     ###############################
     # get the postinstall commands
     postinstall_queue = new eb.command.Queue()
-    @postinstall(_.defaults({clean: false}, options), postinstall_queue)
+    @postinstall(_.defaults({clean: false, queue: postinstall_queue}, options))
 
     for command in postinstall_queue.commands()
-      continue unless command instanceof eb.command.RunCommand
-
-      # undo the copy
-      if command.command is 'cp'
-        args = []
-        if command.args[0] is '-r'
-          args.push('-r')
-          args.push(path.join(@config_dir, command.args[2]))
-        else
-          args.push(path.join(@config_dir, command.args[1]))
-
-        # add the command
-        command_queue.push(new eb.command.Remove(args, {cwd: @config_dir}))
+      continue unless command.newReverseCommand # there is a reverse
+      command_queue.push(command.newReverseCommand()) # add the command
 
     # add footer
     if options.verbose
@@ -161,11 +146,11 @@ class eb.Oven
 
     # collect files to build
     for set_name, set of @config
-      continue if _.contains(RESERVED, set_name)
+      continue if set_name.startsWith('_')
 
-      set_options = eb.utils.extractSetOptions(set, 'build')
-
+      set_options = eb.utils.extractSetOptions(set, '_build')
       file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)
+
       for file_group in file_groups
         args = []
         args.push('-w') if options.watch
@@ -214,16 +199,16 @@ class eb.Oven
 
     # collect tests to run
     for set_name, set of @config
-      continue if _.contains(RESERVED, set_name) or not (set.modes and set.modes.hasOwnProperty('test'))
+      continue if set_name.startsWith('_')
 
-      set_options = eb.utils.extractSetOptions(set, 'test')
+      set_options = eb.utils.extractSetOptions(set, '_test')
+      file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)
 
       # lookup the default runner
       if set_options.runner and not path.existsSync(set_options.runner)
         set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}"
         easy_bake_runner_used = true
 
-      file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)
       for file_group in file_groups
         throw "missing files for test in set: #{set_name}" unless file_group.files
 

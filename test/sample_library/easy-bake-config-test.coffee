@@ -6,6 +6,10 @@ module.exports =
       'src/core.coffee'
       'src/core_helpers.coffee'
     ]
+    _build:
+      commands: [
+        'cp core.js core-copy.js'
+      ]
 
   library_relative:
     output: './build'
@@ -38,4 +42,9 @@ module.exports =
     ]
     files: [
       '**/*.coffee'
+    ]
+
+  _postinstall:
+    commands: [
+      'cp underscore vendor/underscore-latest.js'
     ]

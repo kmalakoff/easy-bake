@@ -1,6 +1,9 @@
 module.exports =
   library:
-    files: 'src/easy-bake.coffee'
+    files: [
+      'src/helpers.coffee'
+      'src/easy-bake.coffee'
+    ]
     modes:
       build:
         commands: [
@@ -20,8 +23,9 @@ module.exports =
     join: 'easy-bake-commands.js'
     output: 'lib'
     files: [
-      'src/commands/queue.coffee'
-      'src/commands/commands.coffee'
+      'src/helpers.coffee'
+      'src/easy-bake-commands/queue.coffee'
+      'src/easy-bake-commands/commands.coffee'
     ]
     modes:
       build:

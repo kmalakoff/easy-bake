@@ -58,10 +58,9 @@ tests:
   output: 'build'
   bare: true
   directories: 'test/easy-bake_core'
-  modes:
-    test:
-      command: 'nodeunit'
-      files: '**/*.js'
+  _test:
+    command: 'nodeunit'
+    files: '**/*.js'
 ```
 
 ###Directories vs Files
@@ -220,12 +219,11 @@ some_testing_group:
     'test/some_tests'
     'test/some_more_tests'
   ]
-  modes:
-    test:
-      command: 'phantomjs'
-      runner: 'phantomjs-qunit-runner.js'
-      args: [60000]
-      files: '**/*.html'
+  _test:
+    command: 'phantomjs'
+    runner: 'phantomjs-qunit-runner.js'
+    args: [60000]
+    files: '**/*.html'
 ```
 
 
@@ -236,11 +234,10 @@ You will need to install phantom yourself since there is no npm package for it. 
 ```
 some_testing_group:
   ...
-  modes:
-    test:
-      command: 'phantomjs'
-      runner: 'phantomjs-qunit-runner.js'
-      files: '**/*.html'
+  _test:
+    command: 'phantomjs'
+    runner: 'phantomjs-qunit-runner.js'
+    files: '**/*.html'
 ```
 
 **Note:** currently the library only has a test-runner for phantomjs-qunit-runner.js and phantomjs-jasmine-runner.js. Feel free to add more and to submit a pull request.
@@ -259,10 +256,21 @@ Just include it as a development dependency to your package.json:
 ```
 some_testing_group:
   ...
-  modes:
-    test:
-      command: 'nodeunit'
-      files: '**/*.js'
+  _test:
+    command: 'nodeunit'
+    files: '**/*.js'
+```
+
+###Post Install
+
+You can add commands to run after npm install. For example, you can copy and rename a file from a node module into a vendor directory:
+
+```
+  _postinstall:
+    commands: [
+      'cp underscore vendor/underscore-latest.js'
+    ]
+
 ```
 
 Release Notes
@@ -272,6 +280,8 @@ Release Notes
 - refactored functionality and spun off module-bundler project (and reversed arguments order of _publish)
 - made dependent on a previous version of easy-bake
 - allow an object + current working directory (cwd) instead of a filename to be used
+- removed modes block and used _reserved} convention instead to reduce verbosity (means instead of {modes: test: options} -> {_test: options})
+- renamed postinstall to _postinstall using _{reserved} convention
 
 Building the library
 -----------------------

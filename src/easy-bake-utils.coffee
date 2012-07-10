@@ -17,9 +17,7 @@ KNOWN_SYSTEM_FILES = ['.DS_Store']
 ##############################
 eb.utils.extractSetOptions = (set, mode, defaults) ->
   set_options = _.clone(set)
-  if set.modes
-    _.extend(set_options, set.modes[mode]) if set.modes[mode]
-    delete set_options['modes']
+  _.extend(set_options, set[mode]) if set[mode]
   _.defaults(set_options, defaults) if defaults
   return set_options
 
