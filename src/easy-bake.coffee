@@ -5,7 +5,6 @@ path = require 'path'
 coffeescript = require 'coffee-script'
 require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
 _ = require 'underscore'
-et = require 'elementtree'
 
 TEST_DEFAULT_TIMEOUT = 60000
 RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
@@ -256,158 +255,66 @@ class eb.Oven
     command_queue.run(options, callback) unless options.queue
     @
 
-  publishGit: (options={}, callback) ->
+  publishPrepare: (options={}, callback, name, success_fn) ->
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     test_queue = new eb.command.Queue()
-    command_queue.push(new eb.command.RunQueue(test_queue, 'publish_git'))
+    command_queue.push(new eb.command.RunQueue(test_queue, name))
 
     # build a chain of commands
     unless options.quick
       test_options = _.defaults({queue: test_queue}, options)
+      delete test_options['quick']
       @clean(test_options).postinstall(test_options).build(test_options).test(_.defaults({no_exit: true}, test_options))
-    test_queue.push({run: (run_options, callback, queue) =>
+    test_queue.push({run: (run_options, local_callback, queue) =>
 
       # don't run because the tests weren't successful
       unless (options.preview or options.verbose)
         if queue.errorCount()
-          console.log("publish_git aborted due to #{queue.errorCount()} error(s)")
-          callback?(queue.errorCount()); return
+          console.log("#{name} aborted due to #{queue.errorCount()} error(s)")
+          local_callback?(queue.errorCount()); return
 
-      command = new eb.command.PublishGit({cwd: @config_dir})
-      command.run(options, (code) ->
-        console.log("publish_git completed with #{code} error(s)") unless options.verbose
-        callback?(code)
-      )
+      # let the command start
+      success_fn()
     })
 
     # run
     command_queue.run(options, callback) unless options.queue
+    @
+
+  publishGit: (options={}, callback) ->
+    @publishPrepare(options, callback, 'publish_git', =>
+      command = new eb.command.PublishGit({cwd: @config_dir})
+      command.run(options, (code) =>
+        console.log("publish_git completed with #{code} error(s)") unless options.verbose
+      )
+    )
     @
 
   publishNPM: (options={}, callback) ->
-    command_queue = if options.queue then options.queue else new eb.command.Queue()
-
-    test_queue = new eb.command.Queue()
-    command_queue.push(new eb.command.RunQueue(test_queue, 'publish_npm'))
-
-    # build a chain of commands
-    unless options.quick
-      test_options = _.defaults({queue: test_queue}, options)
-      @clean(test_options).postinstall(test_options).build(test_options).test(_.defaults({no_exit: true}, test_options))
-    test_queue.push({run: (run_options, callback, queue) =>
-
-      # don't run because the tests weren't successful
-      unless (options.preview or options.verbose)
-        if queue.errorCount()
-          console.log("publish_npm aborted due to #{queue.errorCount()} error(s)")
-          callback?(queue.errorCount()); return
-
-      # CONVENTION: try a nested package in the form 'packages/npm' first
-      package_path = path.join(@config_dir, 'packages', 'npm')
-      package_path = @config_dir unless path.existsSync(package_path) # fallback to this project
-
-      # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
-      package_desc_path = path.join(package_path, 'package.json')
-      (console.log("no package.json found for publish_npm: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless path.existsSync(package_desc_path) # fallback to this project
-      package_desc = require(package_desc_path)
-      (console.log("skipping publish_npm for: #{package_desc_path} (name starts with '_')"); callback?(1); return) if package_desc.name.startsWith('_')
-      (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless path.existsSync(path.join(package_path, package_desc.main))
-
-      command = new eb.command.PublishNPM({force: options.force, cwd: package_path})
-      command.run(options, (code) ->
+    @publishPrepare(options, callback, 'publish_npm', =>
+      command = new eb.command.PublishNPM({cwd: @config_dir, force: options.force})
+      command.run(options, (code) =>
         console.log("publish_npm completed with #{code} error(s)") unless options.verbose
-        callback?(code)
       )
-    })
-
-    # run
-    command_queue.run(options, callback) unless options.queue
+    )
     @
 
   publishNuGet: (options={}, callback) ->
-    command_queue = if options.queue then options.queue else new eb.command.Queue()
-
-    test_queue = new eb.command.Queue()
-    command_queue.push(new eb.command.RunQueue(test_queue, 'publish_nuget'))
-
-    # build a chain of commands
-    unless options.quick
-      test_options = _.defaults({queue: test_queue}, options)
-      @clean(test_options).postinstall(test_options).build(test_options).test(_.defaults({no_exit: true}, test_options))
-    test_queue.push({run: (run_options, callback, queue) =>
-
-      # don't run because the tests weren't successful
-      unless (options.preview or options.verbose)
-        if queue.errorCount()
-          console.log("publish_nuget aborted due to #{queue.errorCount()} error(s)")
-          callback?(queue.errorCount()); return
-
-      # CONVENTION: try a nested package in the form 'packages/npm' first
-      package_path = path.join(@config_dir, 'packages', 'nuget')
-      (callback?(0); return) unless path.existsSync(package_path) # nothing to publish
-
-      # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
-      package_desc_path = path.join(package_path, 'package.nuspec')
-      (console.log("no package.nuspec found for publishNuGet: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless path.existsSync(package_desc_path) # fallback to this project
-
-      package_desc = et.parse(fs.readFileSync(package_desc_path, 'utf8').toString())
-      command_options = {}
-      command_options.version = package_desc.findtext('./metadata/version')
-      command_options.name = package_desc.findtext('./metadata/id')
-      (console.log("package.nuspec missing metadata.version: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless command_options.version
-      (console.log("package.nuspec missing metadata.name: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless command_options.name
-      (console.log("skipping publish_npm for: #{package_desc_path} (name starts with '_')"); callback?(1); return) if command_options.name.startsWith('_')
-
-      files = package_desc.findall('./files/file')
-      for file in files
-        pathed_filename = path.join(package_path, file.get('src'))
-        pathed_filename = pathed_filename.replace(/\\/g, '\/')
-        (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless path.existsSync(pathed_filename)
-
-      command_options.force = options.force
-      command_options.cwd = package_path
-      command = new eb.command.PublishNuGet(command_options)
-      command.run(options, (code) ->
+    @publishPrepare(options, callback, 'publish_nuget', =>
+      command = new eb.command.PublishNuGet({cwd: @config_dir, force: options.force})
+      command.run(options, (code) =>
         console.log("publish_nuget completed with #{code} error(s)") unless options.verbose
-        callback?(code)
       )
-    })
-
-    # run
-    command_queue.run(options, callback) unless options.queue
+    )
     @
 
   publishAll: (options={}, callback) ->
-    command_queue = if options.queue then options.queue else new eb.command.Queue()
-
-    quick = options.quick
-    publish_options = _.clone(options)
-    delete publish_options['quick']
-    publish_options.queue = new eb.command.Queue()
-
-    if quick
-      command_queue.push(new eb.command.RunQueue(publish_options.queue, 'publish_all'))
-      @publishNPM(publish_options).publishGit(publish_options).publishNuGet(publish_options)
-    else
-      test_queue = new eb.command.Queue()
-      command_queue.push(new eb.command.RunQueue(test_queue, 'publish_all'))
-
-      # build a chain of commands
-      test_queue = new eb.command.Queue()
-      test_options = _.defaults({queue: test_queue}, options)
-      @clean(test_options).postinstall(test_options).build(test_options).test(_.defaults({no_exit: true}, test_options))
-      test_queue.push({run: (run_options, callback, queue) =>
-        # don't run because the tests weren't successful
-        unless (options.preview or options.verbose)
-          if queue.errorCount()
-            console.log("publish_all aborted due to #{queue.errorCount()} error(s)")
-            callback?(queue.errorCount()); return
-
-        @publishNPM(publish_options).publishGit(publish_options).publishNuGet(publish_options)
-        publish_options.queue.run(options, callback)
-      })
-
-    # run
-    command_queue.run(options, callback) unless options.queue
+    @publishPrepare(options, callback, 'publish_all', =>
+      local_queue = new eb.command.Queue()
+      local_queue.push(new eb.command.PublishNPM({cwd: @config_dir, force: options.force}))
+      local_queue.push(new eb.command.PublishGit({cwd: @config_dir, force: options.force}))
+      local_queue.push(new eb.command.PublishNuGet({cwd: @config_dir, force: options.force}))
+      local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
+    )
     @

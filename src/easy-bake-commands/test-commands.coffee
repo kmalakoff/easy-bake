@@ -20,10 +20,6 @@ class eb.command.RunTest
 
     # execute
     spawned = spawn scoped_command, scoped_args
-    spawned.stderr.on 'data', (data) ->
-      process.stderr.write data.toString()
-    spawned.stdout.on 'data', (data) ->
-      process.stderr.write data.toString()
     spawned.on 'exit', (code) =>
       @exit_code = code
       if code is 0

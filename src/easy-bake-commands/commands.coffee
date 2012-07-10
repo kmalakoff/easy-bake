@@ -6,6 +6,7 @@ wrench = require 'wrench'
 uglifyjs = require 'uglify-js'
 globber = require 'glob-whatev'
 mb = require 'module-bundler'
+et = require 'elementtree'
 
 ##############################
 # Commands
