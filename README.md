@@ -276,14 +276,50 @@ You can add commands to run after npm install. For example, you can copy and ren
 
 ```
 
-###Publishing to NuGet
+###Publishing
 
-Currently, this command has only been tested on Mac using Mono. If anyone would like to test and update on Windows or Linux, please submit a pull request.
+Publishing to npm registry and NuGet Gallery are currently supported.
 
-#Installation
+Using a post _build command, you should copy your files into the directories as follows:
+
+```
+- project_root
+  - package.json (for building)
+  - packages
+    - npm
+      - package.json (for distribution)
+      - your files
+    - nuget
+      - package.nuspec
+      - Content
+        - Scripts
+          - your files
+```
+
+The reason for this multiple layered structure is so you can separate your building environment (as project_root) from your distribution packages, which for example, may not require all of postinstall and build steps.
+
+#NPM
+
+Set up an account on npm registry: http://search.npmjs.org/
+
+#NuGet
+
+Currently, NuGet has only been tested on Mac using Mono. If anyone would like to test and update on Windows or Linux, please submit a pull request.
+
+Also, NuGet doesn't seem to handle removing and reinstalling packages from the command line so you might need to still perform some manual steps.
+
+*Installation*
 
 - Download and install mono: http://www.go-mono.com/mono-downloads/download.html
+- Get easy-bake using 'npm install' (you need to list it in your package.json file)
+- Register on NuGet Gallery: https://nuget.org
+- Set up your API key. Get your key from your profile in NuGet (show your API key on your account page: https://nuget.org/account) and run 'node_modules/easy-bake/bin/nuget setApiKey YOUR_SECRET_KEY'
 
+*Known Issues*
+
+- If your package has never been created on Nuget Gallery, the first time, you may need to upload it manually: https://nuget.org/packages.
+- Your package may not be deleted when using the --force option. You may need to go to the Gallery website and delete it.
+- Your package may not be public after a push. You may need to go to the package page on the Gallery website and 'change its listing settings'
 
 Release Notes
 -----------------------
@@ -292,6 +328,7 @@ Release Notes
 - added NuGet publishing support (requires Mono on Mac) - see above section "Publishing to NuGet"
 - added publish_all command to publish to all locations
 - renamed publish commands to: publish_git. publish_npm
+- removed no_files_ok option
 
 ### 0.1.4
 - removed modes block and used _reserved} convention instead to reduce verbosity (means instead of {modes: test: options} -> {_test: options})

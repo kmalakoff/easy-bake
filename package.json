@@ -29,5 +29,8 @@
   },
 
   "main"          : "easy-bake.js",
-  "version"       : "0.1.5-pre"
+  "bin":          {
+    "nuget":     "./bin/nuget"
+  },
+  "version"       : "0.1.5"
 }
