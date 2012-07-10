@@ -276,8 +276,22 @@ You can add commands to run after npm install. For example, you can copy and ren
 
 ```
 
+###Publishing to NuGet
+
+Currently, this command has only been tested on Mac using Mono. If anyone would like to test and update on Windows or Linux, please submit a pull request.
+
+#Installation
+
+- Download and install mono: http://www.go-mono.com/mono-downloads/download.html
+
+
 Release Notes
 -----------------------
+
+### 0.1.5
+- added NuGet publishing support (requires Mono on Mac) - see above section "Publishing to NuGet"
+- added publish_all command to publish to all locations
+- renamed publish commands to: publish_git. publish_npm
 
 ### 0.1.4
 - removed modes block and used _reserved} convention instead to reduce verbosity (means instead of {modes: test: options} -> {_test: options})

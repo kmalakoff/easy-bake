@@ -274,3 +274,12 @@ class eb.command.PublishNPM
     args.push('--force') if @command_options.force
     local_queue.push(new eb.command.RunCommand('npm', args, @command_options))
     local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
+
+class eb.command.PublishNuGet
+  constructor: (@command_options={}) ->
+  run: (options={}, callback) ->
+    local_queue = new eb.command.Queue()
+    args = ['publish']
+    args.push('--force') if @command_options.force
+    local_queue.push(new eb.command.RunCommand('bin/nuget', args, @command_options))
+    local_queue.run(options, (queue) -> callback?(queue.errorCount(), @))
