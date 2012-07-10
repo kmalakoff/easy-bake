@@ -29,11 +29,8 @@
   eb.utils.extractSetOptions = function(set, mode, defaults) {
     var set_options;
     set_options = _.clone(set);
-    if (set.modes) {
-      if (set.modes[mode]) {
-        _.extend(set_options, set.modes[mode]);
-      }
-      delete set_options['modes'];
+    if (set[mode]) {
+      _.extend(set_options, set[mode]);
     }
     if (defaults) {
       _.defaults(set_options, defaults);
@@ -60,6 +57,10 @@
       }
       if (command_name === 'cp') {
         _results.push(queue.push(new eb.command.Copy(command_args, {
+          cwd: cwd
+        })));
+      } else if (command_name === 'mbundle') {
+        _results.push(queue.push(new eb.command.ModuleBundle(command_args, {
           cwd: cwd
         })));
       } else {

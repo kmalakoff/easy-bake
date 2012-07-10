@@ -17,9 +17,7 @@ KNOWN_SYSTEM_FILES = ['.DS_Store']
 ##############################
 eb.utils.extractSetOptions = (set, mode, defaults) ->
   set_options = _.clone(set)
-  if set.modes
-    _.extend(set_options, set.modes[mode]) if set.modes[mode]
-    delete set_options['modes']
+  _.extend(set_options, set[mode]) if set[mode]
   _.defaults(set_options, defaults) if defaults
   return set_options
 
@@ -40,6 +38,8 @@ eb.utils.extractSetCommands = (set_options, queue, cwd) ->
     # add the command
     if command_name is 'cp'
       queue.push(new eb.command.Copy(command_args, {cwd: cwd}))
+    else if command_name is 'mbundle'
+      queue.push(new eb.command.ModuleBundle(command_args, {cwd: cwd}))
     else
       queue.push(new eb.command.RunCommand(command_name, command_args, {cwd: cwd}))
 

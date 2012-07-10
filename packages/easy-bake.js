@@ -89,7 +89,7 @@
       }
       this.publishOptions();
       tasks = {
-        postinstall: [
+        _postinstall: [
           'Called by npm after installing library', function(options) {
             return _this.postinstall(options);
           }
@@ -345,7 +345,7 @@
       _ref1 = this.config;
       for (set_name in _ref1) {
         set = _ref1[set_name];
-        if (set_name.startsWith('_') || !set.hasOwnProperty('_test')) {
+        if (set_name.startsWith('_')) {
           continue;
         }
         set_options = eb.utils.extractSetOptions(set, '_test');

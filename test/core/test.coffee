@@ -10,6 +10,7 @@ oven = null
 check_build = (test) ->
   return
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core.js')), 'build: library root')
+  test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core-copy.js')), 'build: library root copy')
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '/build/core.js')), 'build: library relative')
   test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '.hidden/core.js')), 'build: library hidden')
 
@@ -24,6 +25,7 @@ check_build = (test) ->
 check_clean = (test) ->
   return
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core.js')), 'clean: library root')
+  test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core-copy.js')), 'build: library root copy')
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '/build/core.js')), 'clean: library relative')
   test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, '.hidden/core.js')), 'clean: library hidden')
 
@@ -69,6 +71,15 @@ exports.easy_bake_core =
       )
     )
 
+  'Postinstall': (test) ->
+    oven.clean(null, ->
+      test.ok(not path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'vendor/underscore-latest.js')), 'post install: underscore-latest removed')
+      oven.postinstall({}, ->
+        test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'vendor/underscore-latest.js')), 'post install: underscore-latest exists')
+        test.done()
+      )
+    )
+
   'Chaining': (test) ->
     oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee')).publishOptions()
     command_queue = new eb.command.Queue()
@@ -78,25 +89,25 @@ exports.easy_bake_core =
       check_clean(test)
       test.done()
     )
-
+  
   'Manual Tests': (test) ->
     callback = ->
       check_clean(test)
       test.done()
-
+  
     oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee')).publishOptions()
     task 'build', 'Build library and tests', (options) -> oven.build(options)
     task 'clean', 'Clean library and tests', (options) -> oven.clean(options, callback)
-
+  
     global.invoke('clean')
-
+  
   'Scoping Tests': (test) ->
     scoped_oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
     scoped_oven.publishOptions().publishTasks({scope: 'fun'})  # chaining
-
+  
     test.doesNotThrow((->global.invoke('fun.clean')), null, 'fun.clean task invoked')
     test.done()
-
+  
   'Config object instead of file': (test) ->
     config =
       library_root:
@@ -106,7 +117,7 @@ exports.easy_bake_core =
             'src/core.coffee'
             'src/core_helpers.coffee'
           ]
-
+  
     oven = new eb.Oven(config, {cwd: SAMPLE_LIBRARY_ROOT}).publishOptions()
     oven.build({clean: true}, ->
       test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core.js')), 'build: library root')

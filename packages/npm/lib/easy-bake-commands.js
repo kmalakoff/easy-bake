@@ -2,6 +2,14 @@
 (function() {
   var eb, fs, globber, mb, path, spawn, timeLog, uglifyjs, wrench, _;
 
+  timeLog = function(message) {
+    return console.log("" + ((new Date).toLocaleTimeString()) + " - " + message);
+  };
+
+  String.prototype.startsWith = function(start) {
+    return this.indexOf(start) === 0;
+  };
+
   if (!eb) {
     eb = {};
   }
@@ -14,20 +22,16 @@
 
   eb.command = this.eb.command = typeof exports !== 'undefined' ? exports : {};
 
-  timeLog = function(message) {
-    return console.log("" + ((new Date).toLocaleTimeString()) + " - " + message);
-  };
-
   eb.command.Queue = (function() {
 
     function Queue() {
-      this.commands_queue = [];
+      this._commands = [];
       this.is_running = false;
       this.errors = [];
     }
 
     Queue.prototype.commands = function() {
-      return this.commands_queue;
+      return this._commands;
     };
 
     Queue.prototype.errorCount = function() {
@@ -35,7 +39,7 @@
     };
 
     Queue.prototype.push = function(command) {
-      return this.commands_queue.push(command);
+      return this._commands.push(command);
     };
 
     Queue.prototype.run = function(run_options, callback) {
@@ -58,14 +62,14 @@
             task: task
           });
         }
-        if (++current_index < _this.commands_queue.length) {
-          return _this.commands_queue[current_index].run(run_options, next, _this);
+        if (++current_index < _this._commands.length) {
+          return _this._commands[current_index].run(run_options, next, _this);
         } else {
           return done();
         }
       };
-      if (this.commands_queue.length) {
-        return this.commands_queue[current_index].run(run_options, next, this);
+      if (this._commands.length) {
+        return this._commands[current_index].run(run_options, next, this);
       } else {
         return done();
       }
@@ -274,6 +278,14 @@
       return typeof callback === "function" ? callback(0, this) : void 0;
     };
 
+    Copy.prototype.createUndoCommand = function() {
+      if (this.args[0] === '-r') {
+        return new eb.command.Remove(['-r', this.target()], this.command_options);
+      } else {
+        return new eb.command.Remove([this.target()], this.command_options);
+      }
+    };
+
     return Copy;
 
   })();
@@ -318,6 +330,55 @@
     };
 
     return Bundle;
+
+  })();
+
+  eb.command.ModuleBundle = (function() {
+
+    function ModuleBundle(args, command_options) {
+      if (args == null) {
+        args = [];
+      }
+      this.command_options = command_options != null ? command_options : {};
+      this.args = eb.utils.resolveArguments(args, this.command_options.cwd);
+    }
+
+    ModuleBundle.prototype.run = function(options, callback) {
+      var filename, scoped_command, _i, _len, _ref;
+      if (options == null) {
+        options = {};
+      }
+      scoped_command = 'node_modules/easy-bake/node_modules/.bin/mbundle';
+      if (options.preview || options.verbose) {
+        console.log("" + scoped_command + " " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
+        if (options.preview) {
+          if (typeof callback === "function") {
+            callback(0, this);
+          }
+          return;
+        }
+      }
+      try {
+        _ref = this.args;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          filename = _ref[_i];
+          if (mb.writeBundlesSync(filename, {
+            cwd: this.command_options.cwd
+          })) {
+            if (!options.silent) {
+              timeLog("bundled " + filename);
+            }
+          } else {
+            if (!options.silent) {
+              timeLog("failed to bundle " + filename);
+            }
+          }
+        }
+        return typeof callback === "function" ? callback(0, this) : void 0;
+      } catch (_error) {}
+    };
+
+    return ModuleBundle;
 
   })();
 
