@@ -151,7 +151,7 @@ It is best to preinstall a specific version of easy-bake in your package.json (t
 },
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.3-pre"
+  "easy-bake": "0.1.4"
 },
 ```
 
@@ -279,12 +279,14 @@ You can add commands to run after npm install. For example, you can copy and ren
 Release Notes
 -----------------------
 
+### 0.1.4
+- removed modes block and used _reserved} convention instead to reduce verbosity (means instead of {modes: test: options} -> {_test: options})
+- renamed postinstall to _postinstall using _{reserved} convention
+
 ### 0.1.3
 - refactored functionality and spun off module-bundler project (and reversed arguments order of _publish)
 - made dependent on a previous version of easy-bake
 - allow an object + current working directory (cwd) instead of a filename to be used
-- removed modes block and used _reserved} convention instead to reduce verbosity (means instead of {modes: test: options} -> {_test: options})
-- renamed postinstall to _postinstall using _{reserved} convention
 
 Building the library
 -----------------------
