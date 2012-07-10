@@ -45,8 +45,10 @@ module.exports =
       ]
 
   tests:
-    output: 'build'
-    directories: 'test/core'
+    _build:
+      output: 'build'
+      directories: 'test/core'
     _test:
       command: 'nodeunit'
       files: '**/*.js'
+      directories: 'test/core'

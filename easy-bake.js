@@ -336,6 +336,11 @@
         options = {};
       }
       command_queue = options.queue ? options.queue : new eb.command.Queue();
+      if (options.clean) {
+        options = _.defaults({
+          build: true
+        }, options);
+      }
       if (options.build || options.watch) {
         this.build(_.defaults({
           test: true,

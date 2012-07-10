@@ -189,6 +189,8 @@ class eb.Oven
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # add the build commands (will add clean if specified since 'clean' would be in the options)
+    if options.clean
+      options = _.defaults({build: true}, options)
     @build(_.defaults({test: true, queue: command_queue}, options))  if options.build or options.watch
 
     # create a new queue for the tests so we can get a group result
