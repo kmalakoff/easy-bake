@@ -44,7 +44,6 @@ exports.easy_bake_core =
 
   'Loading a config file': (test) ->
     oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
-    oven.publishOptions().publishTasks()  # chaining
     test.done()
 
   'Build': (test) ->
@@ -81,7 +80,7 @@ exports.easy_bake_core =
     )
 
   'Chaining': (test) ->
-    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee')).publishOptions()
+    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
     command_queue = new eb.command.Queue()
     oven.clean({queue: command_queue}).build({queue: command_queue}).clean({queue: command_queue})
     command_queue.run(null, ->
@@ -89,25 +88,18 @@ exports.easy_bake_core =
       check_clean(test)
       test.done()
     )
-  
+
   'Manual Tests': (test) ->
     callback = ->
       check_clean(test)
       test.done()
-  
-    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee')).publishOptions()
+
+    oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
     task 'build', 'Build library and tests', (options) -> oven.build(options)
     task 'clean', 'Clean library and tests', (options) -> oven.clean(options, callback)
-  
+
     global.invoke('clean')
-  
-  'Scoping Tests': (test) ->
-    scoped_oven = new eb.Oven(path.join(SAMPLE_LIBRARY_ROOT, 'easy-bake-config-test.coffee'))
-    scoped_oven.publishOptions().publishTasks({scope: 'fun'})  # chaining
-  
-    test.doesNotThrow((->global.invoke('fun.clean')), null, 'fun.clean task invoked')
-    test.done()
-  
+
   'Config object instead of file': (test) ->
     config =
       library_root:
@@ -117,8 +109,8 @@ exports.easy_bake_core =
             'src/core.coffee'
             'src/core_helpers.coffee'
           ]
-  
-    oven = new eb.Oven(config, {cwd: SAMPLE_LIBRARY_ROOT}).publishOptions()
+
+    oven = new eb.Oven(config, {cwd: SAMPLE_LIBRARY_ROOT})
     oven.build({clean: true}, ->
       test.ok(path.existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'core.js')), 'build: library root')
       oven.clean({}, ->

@@ -1,5 +1,6 @@
 module.exports =
   library:
+    join: 'easy-bake.js'
     files: [
       'src/helpers.coffee'
       'src/easy-bake.coffee'
@@ -45,10 +46,9 @@ module.exports =
       ]
 
   tests:
+    directories: 'test/core'
     _build:
       output: 'build'
-      directories: 'test/core'
     _test:
       command: 'nodeunit'
       files: '**/*.js'
-      directories: 'test/core'

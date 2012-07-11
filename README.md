@@ -149,11 +149,11 @@ It is best to preinstall a specific version of easy-bake in your package.json (t
 
 ```
 "scripts": {
-  "postinstall": "cake postinstall"
+  "postinstall": "bake postinstall"
 },
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.5"
+  "easy-bake": "0.1.6"
 },
 ```
 
@@ -195,11 +195,11 @@ If you are using TravisCI, you should add something like this to your project.js
 
 ```
 "scripts": {
-  "postinstall": "cake postinstall",
-  "clean": "cake clean",
-  "build": "cake build",
-  "watch": "cake watch",
-  "test": "cake -c test"
+  "postinstall": "bake postinstall",
+  "clean": "bake clean",
+  "build": "bake build",
+  "watch": "bake watch",
+  "test": "bake test -c"
 },
 ```
 
@@ -325,6 +325,11 @@ Also, NuGet doesn't seem to handle removing and reinstalling packages from the c
 
 Release Notes
 -----------------------
+
+### 0.1.6
+- moved from cake commands to bake commands
+- introduced convention of Bakefile.coffee or Bakefile.js for configuration
+- removed options scoping
 
 ### 0.1.5
 - added NuGet publishing support (requires Mono on Mac) - see above section "Publishing to NuGet"

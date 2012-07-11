@@ -40,40 +40,6 @@ class eb.Oven
 
     console.log("warning: an empty config file was loaded: #{config_pathed_filename}") unless _.size(@config)
 
-  publishOptions: ->
-    global.option('-c', '--clean',     'cleans the project before running a command')
-    global.option('-w', '--watch',     'watches for changes')
-    global.option('-b', '--build',     'builds the project (used with test)')
-    global.option('-p', '--preview',   'display all of the commands that will be run (without running them!)')
-    global.option('-v', '--verbose',   'display additional information')
-    global.option('-s', '--silent',    'does not output messages to the console (unless errors occur)')
-    global.option('-f', '--force',     'forces the action to occur')
-    global.option('-q', '--quick',     'performs minimal task')
-    @
-
-  publishTasks: (options={}) ->
-    @publishOptions()
-
-    tasks =
-      postinstall:    ['Called by npm after installing library',  (options) => @postinstall(options)]
-      clean:          ['Remove generated JavaScript files',       (options) => @clean(options)]
-      build:          ['Build library and tests',                 (options) => @build(options)]
-      watch:          ['Watch library and tests',                 (options) => @build(_.defaults({watch: true}, options))]
-      test:           ['Test library',                            (options) => @test(options)]
-      publish_git:    ['Cleans, builds, tests and if successful, runs git commands to add, commit, and push the project',  (options) => @publishGit(options)]
-      publish_npm:    ['Cleans, builds, tests and if successful, runs npm commands to publish the project',  (options) => @publishNPM(options)]
-      publish_nuget:  ['Cleans, builds, tests and if successful, runs nuget commands to publish the project',  (options) => @publishNuGet(options)]
-      publish_all:    ['Cleans, builds, tests and if successful, commands to publish the project in all available repositories',  (options) => @publishAll(options)]
-
-    # register and optionally scope the tasks
-    task_names = if options.tasks then options.tasks else _.keys(tasks)
-    for task_name in task_names
-      args = tasks[task_name]
-      (console.log("easy-bake: task name not recognized #{task_name}"); continue) unless args
-      task_name = "#{options.scope}.#{task_name}" if options.scope
-      global.task.apply(null, [task_name].concat(args))
-    @
-
   postinstall: (options={}, callback) ->
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
@@ -189,8 +155,7 @@ class eb.Oven
     command_queue = if options.queue then options.queue else new eb.command.Queue()
 
     # add the build commands (will add clean if specified since 'clean' would be in the options)
-    if options.clean
-      options = _.defaults({build: true}, options)
+    options = _.defaults({build: true}, options) if options.clean
     @build(_.defaults({test: true, queue: command_queue}, options))  if options.build or options.watch
 
     # create a new queue for the tests so we can get a group result
