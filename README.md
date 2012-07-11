@@ -55,9 +55,10 @@ lib_test_runners:
   directories: 'src/test_runners'
 
 tests:
-  output: 'build'
-  bare: true
-  directories: 'test/easy-bake_core'
+  _build
+    output: 'build'
+    bare: true
+    directories: 'test/easy-bake_core'
   _test:
     command: 'nodeunit'
     files: '**/*.js'
@@ -134,9 +135,10 @@ Whereas, the output in this case will be in a new folder under 'test/easy-bake_c
 
 ```
 tests:
-  output: 'build'
-  bare: true
-  directories: 'test/easy-bake_core'
+  _build
+    output: 'build'
+    bare: true
+    directories: 'test/easy-bake_core'
 ```
 
 
@@ -147,11 +149,11 @@ It is best to preinstall a specific version of easy-bake in your package.json (t
 
 ```
 "scripts": {
-  "postinstall": "cake postinstall"
+  "postinstall": "bake postinstall"
 },
 "devDependencies": {
   "coffee-script": ">=1.3.3",
-  "easy-bake": "0.1.5"
+  "easy-bake": "0.1.6"
 },
 ```
 
@@ -193,11 +195,11 @@ If you are using TravisCI, you should add something like this to your project.js
 
 ```
 "scripts": {
-  "postinstall": "cake postinstall",
-  "clean": "cake clean",
-  "build": "cake build",
-  "watch": "cake watch",
-  "test": "cake -c -b test"
+  "postinstall": "bake postinstall",
+  "clean": "bake clean",
+  "build": "bake build",
+  "watch": "bake watch",
+  "test": "bake test -c"
 },
 ```
 
@@ -324,11 +326,17 @@ Also, NuGet doesn't seem to handle removing and reinstalling packages from the c
 Release Notes
 -----------------------
 
+### 0.1.6
+- moved from cake commands to bake commands
+- introduced convention of Bakefile.coffee or Bakefile.js for configuration
+- removed options scoping
+
 ### 0.1.5
 - added NuGet publishing support (requires Mono on Mac) - see above section "Publishing to NuGet"
 - added publish_all command to publish to all locations
 - renamed publish commands to: publish_git. publish_npm
 - removed no_files_ok option
+- made a test with clean automatically add a build option. Was: 'cake -c -b test' now: 'cake -c test'
 
 ### 0.1.4
 - removed modes block and used _reserved} convention instead to reduce verbosity (means instead of {modes: test: options} -> {_test: options})

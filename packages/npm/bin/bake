@@ -1,0 +1,154 @@
+#!/usr/bin/env coffee
+
+path = require 'path'
+fs = require 'fs'
+cli = require 'commander'
+
+try
+  eb_dir = path.normalize(path.join(path.dirname(fs.realpathSync(__filename)), '..'))
+  eb = require path.join(eb_dir, 'easy-bake.js')
+catch e
+  eb = require 'easy-bake'
+
+# defaults
+default_config_coffee = path.join(fs.realpathSync('.'), 'Bakefile.coffee')
+default_config_js = path.join(fs.realpathSync('.'), 'Bakefile.js')
+
+createOven = (env) ->
+  # use CoffeeScript config file
+  if path.existsSync(default_config_coffee)
+    return new eb.Oven(default_config_coffee)
+
+  # use JavaScript config file
+  else if path.existsSync(default_config_js)
+    return new eb.Oven(default_config_js)
+
+  # no config file found
+  throw "bake: couldn't find Bakefile.coffee nor Bakefile.js"
+
+extractOptions = (env) ->
+  options = {}
+  for option_definition in env.options
+    option_key = option_definition.long.substring(2)
+    options[option_key] = env[option_key] if env.hasOwnProperty(option_key)
+
+  return options
+
+############################
+# Command LIne Interface
+############################
+cli
+  .version('0.1.6')
+
+cli
+  .command('postinstall')
+  .description('Can be called by npm after installing library to perform custom postinstall actions')
+
+  .action (env) ->
+    createOven(env).postinstall()
+
+cli
+  .command('clean')
+  .description('Remove generated JavaScript files')
+
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+
+  .action (env) ->
+    createOven(env).clean(extractOptions(env))
+
+cli
+  .command('build')
+  .description('Build library and tests')
+
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+  .option('-c, --clean', 'Remove generated JavaScript files before build')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+
+  .action (env) ->
+    createOven(env).build(extractOptions(env))
+
+cli
+  .command('watch')
+  .description('Watch library and tests')
+
+  .option('-c, --clean', 'Remove generated JavaScript files before watch')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+
+  .action (env) ->
+    options = extractOptions(env)
+    options.watch = true
+
+    createOven(env).build(options)
+
+cli
+  .command('test')
+  .description('Test the library')
+
+  .option('-c, --clean', 'Remove generated JavaScript files and build before running the tests')
+  .option('-b, --build', 'Build the library before running the tests')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+
+  .action (env) ->
+    createOven(env).test(extractOptions(env))
+
+cli
+  .command('publish_git')
+  .description('Cleans, builds, tests tests (unless run in quick mode) and if successful, runs git commands to add, commit, and push the project')
+
+  .option('-f, --force', 'Forces the action to occur')
+  .option('-q, --quick', 'Performs minimal version of the task skipping clean, build, test')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+
+  .action (env) ->
+    createOven(env).publishGit(extractOptions(env))
+
+cli
+  .command('publish_npm')
+  .description('Cleans, builds, tests tests (unless run in quick mode) and if successful, runs npm commands to publish the project')
+
+  .option('-f, --force', 'Forces the action to occur')
+  .option('-q, --quick', 'Performs minimal version of the task skipping clean, build, test')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+
+  .action (env) ->
+    createOven(env).publishNPM(extractOptions(env))
+
+cli
+  .command('publish_nuget')
+  .description('Cleans, builds, tests tests (unless run in quick mode) and if successful, runs nuget commands to publish the project')
+
+  .option('-f, --force', 'Forces the action to occur')
+  .option('-q, --quick', 'Performs minimal version of the task skipping clean, build, test')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+
+  .action (env) ->
+    createOven(env).publishNuGet(extractOptions(env))
+
+cli
+  .command('publish_all')
+  .description('Cleans, builds, tests tests (unless run in quick mode) and if successful, commands to publish the project in all available repositories')
+
+  .option('-f, --force', 'Forces the action to occur')
+  .option('-q, --quick', 'Performs minimal version of the task skipping clean, build, test')
+  .option('-p, --preview', 'Display all of the commands that will be run (without running them!)')
+  .option('-v, --verbose', 'Display additional information while running')
+  .option('-s, --silent', 'Do not output messages to the console (unless errors occur)')
+
+  .action (env) ->
+    createOven(env).publishAll(extractOptions(env))
+
+cli.parse(process.argv)
+
