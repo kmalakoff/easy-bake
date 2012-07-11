@@ -9,6 +9,9 @@ _ = require 'underscore'
 TEST_DEFAULT_TIMEOUT = 60000
 RUNNERS_ROOT = "#{__dirname}/lib/test_runners"
 
+INTERNAL_SETS = ['_postinstall']
+INTERNAL_MODES = ['_build', '_test']
+
 # export or create eb scope
 eb = @eb = if (typeof(exports) != 'undefined') then exports else {}
 eb.utils = require './lib/easy-bake-utils'
@@ -38,7 +41,19 @@ class eb.Oven
       length = @config_dir.length
       @config_dir = @config_dir.slice(0,length-1) if @config_dir[length-1] is '/'
 
+    # validate
+    @_validateConfig()
+
+  _validateConfig: ->
     console.log("warning: an empty config file was loaded: #{config_pathed_filename}") unless _.size(@config)
+
+    # check for unrecognized sets
+    for set_name, set of @config
+      console.log("warning: set name '#{set_name}' is not a recognized internal set. It will be skipped.") if set_name.startsWith('_') and not _.contains(INTERNAL_SETS, set_name)
+
+      # check for unrecognized modes
+      for mode_name of set
+        console.log("warning: mode name '#{mode_name}' is not a recognized internal mode. It will be skipped.") if mode_name.startsWith('_') and not _.contains(INTERNAL_MODES, mode_name)
 
   postinstall: (options={}, callback) ->
     command_queue = if options.queue then options.queue else new eb.command.Queue()

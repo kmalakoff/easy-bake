@@ -15,31 +15,28 @@ EasyBake provides Coffeescript config file-based Cakefile helpers for common Cof
 Commands Supplied by EasyBake
 -----------------------
 
-- **cake postinstall**: runs postinstall steps like copying dependent client scripts to vendor directory, etc.
-- **cake clean**: cleans the project of all compiled files
-- **cake build**: performs a single build
-- **cake watch**: automatically scans for and builds the project when changes are detected
-- **cake test**: runs tests (you might need to install phantomjs: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs')
-- **cake gitpush**: cleans, builds, tests and if successful, runs git commands to add, commit, and push the project.
+- **bake postinstall**: runs postinstall steps like copying dependent client scripts to vendor directory, etc.
+- **bake clean**: cleans the project of all compiled files
+- **bake build**: performs a single build
+- **bake watch**: automatically scans for and builds the project when changes are detected
+- **bake test**: runs tests (you might need to install phantomjs: http://phantomjs.org/ or if you use homebrew: 'brew install phantomjs')
+- **bake publish_git**: cleans, builds, tests and if successful, runs git commands to add, commit, and push the project.
+- **bake publish_npm**: cleans, builds, tests and if successful, runs git commands to add, commit, and push the project to node registry.
+- **bake publish_nuget**: cleans, builds, tests and if successful, runs git commands to add, commit, and push the project to NuGet Gallery.
+- **bake publish_all**: cleans, builds, tests and if successful, runs git commands to add, commit, and push the project to all relevant repositories.
 
 Command Options:
 -----------------------
 
-For example: 'cake -c -w test' will first clean your project, build it, run your tests, and re-build and re-run your tests when source files change
+For example: 'bake test -c -w' will first clean your project, build it, run your tests, and re-build and re-run your tests when source files change
 
-Here are the options with the relevant commands:
+Some common options:
 
 - **-c**/**--clean** (build, watch, test): cleans the project before running a command
-
-- **-w**/**--watch** (build, test): watches for changes
-
-- **-b'**/**'--build** (test): builds the project (used with test)
-
 - **-p'**/**'--preview** (all): display all of the commands that will be run (without running them!)
+- **-f'**/**'--force** (publish): overwrite the existing repository version (if possible)
 
-- **-v'**/**'--verbose** (all): display additional information
-
-- **-s**/**--silent** (all): does not output messages to the console (unless errors occur)
+To see all of the options for each command, just run 'bake command_name --help'.
 
 Sample Config File
 -----------------------
@@ -47,21 +44,22 @@ Sample Config File
 Here is an example of a CoffeeScript config file (JavaScript is also supported):
 
 ```
-library:
-  files: 'src/easy-bake.coffee'
+module.exports =
+  library:
+    files: 'src/easy-bake.coffee'
 
-lib_test_runners:
-  output: '../../lib/test_runners'
-  directories: 'src/test_runners'
+  lib_test_runners:
+    output: '../../lib/test_runners'
+    directories: 'src/test_runners'
 
-tests:
-  _build
-    output: 'build'
-    bare: true
-    directories: 'test/easy-bake_core'
-  _test:
-    command: 'nodeunit'
-    files: '**/*.js'
+  tests:
+    _build
+      output: 'build'
+      bare: true
+      directories: 'test/easy-bake_core'
+    _test:
+      command: 'nodeunit'
+      files: '**/*.js'
 ```
 
 ###Directories vs Files
@@ -163,31 +161,28 @@ Install it:
 npm install
 ```
 
-Include it in your Cakefile:
+Add a Bakefile.coffee or Bakefile.js to your root directory like:
 
 ```
-easybake = require('easy-bake')
-(new easybake.Oven('easy-bake-config.coffee')).publishTasks()
+module.exports =
+  library:
+    files: 'src/easy-bake.coffee'
 ```
 
-or if you want finer control:
+And run it:
 
 ```
-easybake = require('easy-bake')
-oven = (new easybake.Oven('easy-bake-config.coffee')).publishOptions()
-
-task 'build', 'Build library and tests', (options) -> myBuildFunction(); oven.build(options)
-task 'postinstall', 'Called by npm after installing library', (options) -> myPostInstallFunction(); oven.postinstall(options)
+bake build
 ```
 
-###Oven.publishTasks() Options
+*Note*: if you can't run bake from your command line, make sure node_modules/.bin is added to your PATH. For example in zsh, just add the following to ~/.zshrc:
 
-- **tasks**: an array of tasks to include (in case you want to use only a subset)
-- **scope**: provides a scope for the tasks like 'cake namspace.build' instead of just 'cake build'
+```
+export PATH=node_modules/.bin:$PATH
+```
 
 
-
-And that's it! You will have access to the following cake commands and options in your projects...
+And that's it! You will have access to the following bake commands and options in your projects...
 
 Testing
 -----------------------
@@ -327,7 +322,7 @@ Release Notes
 -----------------------
 
 ### 0.1.6
-- moved from cake commands to bake commands
+- moved from cake commands to bake commands. Was: 'cake -c test' now: 'bake test -c'
 - introduced convention of Bakefile.coffee or Bakefile.js for configuration
 - removed options scoping
 
