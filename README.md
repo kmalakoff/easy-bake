@@ -175,10 +175,12 @@ And run it:
 bake build
 ```
 
-*Note*: if you can't run bake from your command line, make sure node_modules/.bin is added to your PATH. For example in zsh, just add the following to ~/.zshrc:
+###Known Issues
+
+1. if commands like bake, mbundle, or uglify give you errors, make sure 'node_modules/.bin' and 'node_modules/easy-bake/node_modules/.bin' are added to your PATH. For example in zsh, just add the following to ~/.zshrc:
 
 ```
-export PATH=node_modules/.bin:$PATH
+export PATH=node_modules/.bin:node_modules/easy-bake/node_modules/.bin:$PATH
 ```
 
 
@@ -206,6 +208,7 @@ node_js:
   - 0.7 # development version of 0.8, may be unstable
 
 before_script:
+  - "export PATH=node_modules/.bin:node_modules/easy-bake/node_modules/.bin:$PATH"
   - "export DISPLAY=:99.0"
   - "sh -e /etc/init.d/xvfb start"
 ```
@@ -317,6 +320,7 @@ Also, NuGet doesn't seem to handle removing and reinstalling packages from the c
 - If your package has never been created on Nuget Gallery, the first time, you may need to upload it manually: https://nuget.org/packages.
 - Your package may not be deleted when using the --force option. You may need to go to the Gallery website and delete it.
 - Your package may not be public after a push. You may need to go to the package page on the Gallery website and 'change its listing settings'
+
 
 Release Notes
 -----------------------

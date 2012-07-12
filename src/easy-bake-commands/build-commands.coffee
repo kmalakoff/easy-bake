@@ -50,7 +50,7 @@ class eb.command.Coffee
 
         # add to the compress queue
         if @isCompressed()
-          post_build_queue.push(new eb.command.UglifyJS(['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {cwd: @targetDirectory()}))
+          post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {cwd: @command_options.cwd}))
 
       # add the test command
       if @runsTests() and @already_run
@@ -62,30 +62,3 @@ class eb.command.Coffee
 
     # watch vs build callbacks are slightly different
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
-
-class eb.command.UglifyJS
-  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
-  outputName: -> return if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
-
-  run: (options={}, callback) ->
-    scoped_command = 'node_modules/.bin/uglifyjs'
-
-    # display
-    if options.preview or options.verbose
-      console.log("#{scoped_command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
-      (callback?(0, @); return) if options.preview
-
-    # execute
-    try
-      src = fs.readFileSync(@args[2], 'utf8')
-      header = if ((header_index = src.indexOf('*/'))>0) then src.substr(0, header_index+2) else ''
-      ast = uglifyjs.parser.parse(src)
-      ast = uglifyjs.uglify.ast_mangle(ast)
-      ast = uglifyjs.uglify.ast_squeeze(ast)
-      src = header + uglifyjs.uglify.gen_code(ast) + ';'
-      fs.writeFileSync(@args[1], src, 'utf8')
-      timeLog("compressed #{eb.utils.relativePath(@outputName(), @command_options.cwd)}") unless options.silent
-      callback?(0, @)
-    catch e
-      timeLog("failed to minify #{eb.utils.relativePath(@outputName(), @command_options.cwd)} .... error code: #{e.code}")
-      callback?(e.code, @)

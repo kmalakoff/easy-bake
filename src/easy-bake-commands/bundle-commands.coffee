@@ -14,23 +14,3 @@ class eb.command.Bundle
       else
         timeLog("failed to bundle #{eb.utils.relativePath(bundle_filename, @command_options.cwd)}")
     callback?(0, @)
-
-class eb.command.ModuleBundle
-  constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
-
-  run: (options={}, callback) ->
-    scoped_command = 'node_modules/easy-bake/node_modules/.bin/mbundle'
-
-    # display
-    if options.preview or options.verbose
-      console.log("#{scoped_command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
-      (callback?(0, @); return) if options.preview
-
-    # execute
-    try
-      for filename in @args
-        if mb.writeBundlesSync(filename, {cwd: @command_options.cwd})
-          timeLog("bundled #{filename}") unless options.silent
-        else
-          timeLog("failed to bundle #{filename}") unless options.silent
-      callback?(0, @)
