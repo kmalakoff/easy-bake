@@ -50,7 +50,7 @@ class eb.command.Coffee
 
         # add to the compress queue
         if @isCompressed()
-          post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {cwd: @command_options.cwd}))
+          post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], null))
 
       # add the test command
       if @runsTests() and @already_run

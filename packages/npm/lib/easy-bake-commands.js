@@ -381,9 +381,7 @@
             timeLog("failed to compile " + (eb.utils.relativePath(pathed_build_name, _this.targetDirectory())) + " .... error code: " + code);
           }
           if (_this.isCompressed()) {
-            post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], {
-              cwd: _this.command_options.cwd
-            }));
+            post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], null));
           }
         }
         if (_this.runsTests() && _this.already_run) {
