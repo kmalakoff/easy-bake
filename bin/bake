@@ -35,7 +35,7 @@ extractOptions = (env) ->
   return options
 
 ############################
-# Command LIne Interface
+# Command Line Interface
 ############################
 cli
   .version('0.1.6')
