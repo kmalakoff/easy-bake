@@ -1,3 +1,7 @@
+fs = require 'fs'
+path = require 'path'
+existsSync = fs.existsSync || path.existsSync
+
 # helpers
 timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env coffee
 
-path = require 'path'
 fs = require 'fs'
+path = require 'path'
+existsSync = fs.existsSync || path.existsSync
 cli = require 'commander'
 
 try
@@ -16,11 +17,11 @@ default_config_js = path.join(fs.realpathSync('.'), 'Bakefile.js')
 
 createOven = (env) ->
   # use CoffeeScript config file
-  if path.existsSync(default_config_coffee)
+  if existsSync(default_config_coffee)
     return new eb.Oven(default_config_coffee)
 
   # use JavaScript config file
-  else if path.existsSync(default_config_js)
+  else if existsSync(default_config_js)
     return new eb.Oven(default_config_js)
 
   # no config file found
@@ -35,7 +36,7 @@ extractOptions = (env) ->
   return options
 
 ############################
-# Command LIne Interface
+# Command Line Interface
 ############################
 cli
   .version('0.1.6')

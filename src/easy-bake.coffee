@@ -1,7 +1,5 @@
 {print} = require 'util'
 {spawn} = require 'child_process'
-fs = require 'fs'
-path = require 'path'
 coffeescript = require 'coffee-script'
 require 'coffee-script/lib/coffee-script/cake' if not global.option # load cake
 _ = require 'underscore'
@@ -189,7 +187,7 @@ class eb.Oven
       file_groups = eb.utils.getOptionsFileGroups(set_options, @config_dir, options)
 
       # lookup the default runner
-      if set_options.runner and not path.existsSync(set_options.runner)
+      if set_options.runner and not existsSync(set_options.runner)
         set_options.runner = "#{RUNNERS_ROOT}/#{set_options.runner}"
         easy_bake_runner_used = true
 

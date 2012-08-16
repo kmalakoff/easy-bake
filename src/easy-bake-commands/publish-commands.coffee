@@ -14,15 +14,15 @@ class eb.command.PublishNPM
   run: (options={}, callback) ->
     # CONVENTION: try a nested package in the form 'packages/npm' first
     package_path = path.join(@command_options.cwd, 'packages', 'npm')
-    package_path = @config_dir unless path.existsSync(package_path) # fallback to this project
+    package_path = @config_dir unless existsSync(package_path) # fallback to this project
 
     # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
     package_desc_path = path.join(package_path, 'package.json')
-    (console.log("no package.json found for publish_npm: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless path.existsSync(package_desc_path) # fallback to this project
+    (console.log("no package.json found for publish_npm: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless existsSync(package_desc_path) # fallback to this project
 
     package_desc = require(package_desc_path)
     (console.log("skipping publish_npm for: #{package_desc_path} (name starts with '_')"); callback?(1); return) if package_desc.name.startsWith('_')
-    (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless path.existsSync(path.join(package_path, package_desc.main))
+    (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless existsSync(path.join(package_path, package_desc.main))
 
     local_queue = new eb.command.Queue()
     args = ['publish']
@@ -39,11 +39,11 @@ class eb.command.PublishNuGet
 
     # CONVENTION: try a nested package in the form 'packages/nuget' first
     package_path = path.join(@command_options.cwd, 'packages', 'nuget')
-    (callback?(0); return) unless path.existsSync(package_path) # nothing to publish
+    (callback?(0); return) unless existsSync(package_path) # nothing to publish
 
     # CONVENTION: safe guard...do not publish packages that starts in _ or missing the main file
     package_desc_path = path.join(package_path, 'package.nuspec')
-    (console.log("no package.nuspec found for publishNuGet: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless path.existsSync(package_desc_path) # fallback to this project
+    (console.log("no package.nuspec found for publishNuGet: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless existsSync(package_desc_path) # fallback to this project
 
     package_desc = et.parse(fs.readFileSync(package_desc_path, 'utf8').toString())
     package_id = package_desc.findtext('./metadata/id')
@@ -56,7 +56,7 @@ class eb.command.PublishNuGet
     for file in files
       pathed_filename = path.join(package_path, file.get('src'))
       pathed_filename = pathed_filename.replace(/\\/g, '\/')
-      (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless path.existsSync(pathed_filename)
+      (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless existsSync(pathed_filename)
 
     local_queue = new eb.command.Queue()
     if @command_options.force

@@ -3,7 +3,7 @@ class eb.command.Remove
   target: -> return @args[@args.length-1]
 
   run: (options={}, callback) ->
-    (callback?(0, @); return) unless path.existsSync(@target()) # nothing to delete
+    (callback?(0, @); return) unless existsSync(@target()) # nothing to delete
 
     # display
     if options.preview or options.verbose
@@ -33,7 +33,7 @@ class eb.command.Copy
     # make the destination directory
     try
       target_dir = path.dirname(@target())
-      wrench.mkdirSyncRecursive(target_dir, 0o0777) unless path.existsSync(target_dir)
+      wrench.mkdirSyncRecursive(target_dir, 0o0777) unless existsSync(target_dir)
     catch e
       throw e if e.code isnt 'EEXIST'
 

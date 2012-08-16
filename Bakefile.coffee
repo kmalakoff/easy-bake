@@ -8,6 +8,7 @@ module.exports =
     _build:
       commands: [
         'cp easy-bake.js packages/npm/easy-bake.js'
+        'cp README.md packages/npm/README.md'
         'cp -r bin packages/npm/bin'
       ]
 

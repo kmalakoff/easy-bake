@@ -1,6 +1,4 @@
 {spawn} = require 'child_process'
-fs = require 'fs'
-path = require 'path'
 _ = require 'underscore'
 wrench = require 'wrench'
 uglifyjs = require 'uglify-js'
@@ -30,7 +28,7 @@ class eb.command.RunCommand
     spawned.on 'exit', (code) =>
       @exit_code = code
       if code is 0
-        timeLog("command succeeded '#{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}'") unless options.silent
+        timeLog("command succeeded '#{@command}'") unless options.silent
       else
         timeLog("command failed '#{@command} #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}' (exit code: #{code})")
       callback?(code, @)

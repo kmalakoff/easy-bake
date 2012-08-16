@@ -1,5 +1,6 @@
 fs = require 'fs'
 path = require 'path'
+existsSync = fs.existsSync || path.existsSync
 _ = require 'underscore'
 globber = require 'glob-whatev'
 mb = require 'module-bundler'
@@ -55,7 +56,7 @@ eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   # build the list of files per directory if there are any matching files
   for unpathed_dir in directories
     directory = mb.resolveSafe(unpathed_dir, {cwd: cwd, skip_require: true})
-    unless path.existsSync(directory)
+    unless existsSync(directory)
       console.log("warning: directory is missing #{unpathed_dir}") # unless options.preview
       continue
 
