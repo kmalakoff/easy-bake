@@ -151,5 +151,12 @@ cli
   .action (env) ->
     createOven(env).publishAll(extractOptions(env))
 
+cli
+  .command('*')
+  .description('unrecognized command')
+  .action (env) ->
+    throw "bake: unrecognized command '#{env}'"
+
+throw "bake: missing command" if process.argv.length <= 2
 cli.parse(process.argv)
 

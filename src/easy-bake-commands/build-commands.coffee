@@ -28,9 +28,6 @@ class eb.command.Coffee
       console.log("coffee #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}")
       (callback?(0, @); return) if options.preview
 
-    spawned = spawn 'coffee', @args, eb.utils.extractCWD(@command_options)
-    spawned.stderr.on 'data', (data) ->
-      process.stderr.write data.toString()
     notify = (code) =>
       output_directory = @targetDirectory()
       output_names = @pathedTargets()
@@ -60,5 +57,13 @@ class eb.command.Coffee
       # run the post build queue
       if post_build_queue then post_build_queue.run(options, => callback?(code, @)) else callback?(0, @)
 
+    spawned = spawn 'coffee', @args, eb.utils.extractCWD(@command_options)
+    spawned.stderr.on 'data', (data) ->
+      message = data.toString()
+      if message.search('is now called') < 0 
+        console.log(message)
+        process.stderr.write message
+        notify(1) 
+  
     # watch vs build callbacks are slightly different
     if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
