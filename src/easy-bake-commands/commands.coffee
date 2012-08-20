@@ -23,10 +23,9 @@ class eb.command.RunCommand
     spawned = spawn @command, @args, eb.utils.extractCWD(@command_options)
     spawned.stderr.on 'data', (data) ->
       message = data.toString()
-      if message.search('is now called') < 0 
-        console.log(message)
-        process.stderr.write message
-        callback?(1, @) 
+      return if message.search('is now called') >= 0 
+      process.stderr.write message
+      callback?(1, @) 
     spawned.stdout.on 'data', (data) ->
       process.stderr.write data.toString()
     spawned.on 'exit', (code) =>

@@ -1,6 +1,13 @@
 class eb.command.Coffee
   constructor: (args=[], @command_options={}) ->
     @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  sourceFiles: -> 
+    source_files = _.clone(@args)
+    source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-w')) >= 0)
+    source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-o')) >= 0)
+    source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-j')) >= 0)
+    source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-c')) >= 0)
+    return source_files
   targetDirectory: -> return mb.pathNormalizeSafe(if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else '')
   pathedTargets: ->
     pathed_targets = []
@@ -44,6 +51,8 @@ class eb.command.Coffee
           timeLog("compiled #{eb.utils.relativePath(pathed_build_name, @targetDirectory())}") unless options.silent
         else
           timeLog("failed to compile #{eb.utils.relativePath(pathed_build_name, @targetDirectory())} .... error code: #{code}")
+          callback?(code, @)
+          return
 
         # add to the compress queue
         if @isCompressed()
@@ -57,13 +66,63 @@ class eb.command.Coffee
       # run the post build queue
       if post_build_queue then post_build_queue.run(options, => callback?(code, @)) else callback?(0, @)
 
-    spawned = spawn 'coffee', @args, eb.utils.extractCWD(@command_options)
-    spawned.stderr.on 'data', (data) ->
-      message = data.toString()
-      if message.search('is now called') < 0 
-        console.log(message)
+    # set up command parameters
+    watch_index = _.indexOf(@args, '-w')
+    if watch_index >= 0
+      args = _.clone(@args)
+      args.splice(watch_index, 1)
+      watch_list = @sourceFiles()
+      watchers = {}
+    else
+      args = @args
+    cwd = eb.utils.extractCWD(@command_options)
+
+    watchFile = (file) ->
+      watchers[file].close() if watchers[file]
+      stats = fs.statSync(file)
+      watchers[file] = fs.watch(file, -> 
+        now_stats = fs.statSync(file)
+        # process.stderr.write "#{file} stats: \n"
+        return if stats.mtime.getTime() is now_stats.mtime.getTime() # no change
+        stats = now_stats
+        compile()
+      )
+
+    watchFiles = (files) ->
+      # unwatch any files
+      watcher.close() for source, watcher of watchers; watchers = {}
+
+      # watch each file      
+      for file in files
+        try 
+          watchFile(file)
+        catch e
+          throw e if e.code isnt 'ENOENT'
+          process.stderr.write "coffee: #{file.replace(@command_options.cwd, '')} doesn't exist. Skipping"
+
+    watchDirectory = (directory) ->
+      update = ->
+        watch_list = []; globber.glob("#{directory}/**/*.coffee").forEach((pathed_file) -> watch_list.push(pathed_file))
+        watchFiles(watch_list)
+      fs.watch(directory, update) # watch for directory changes
+      update() # watch the files in the directory
+
+    compile = ->
+      errors = false
+      spawned = spawn 'coffee', args, cwd
+      spawned.stderr.on 'data', (data) ->
+        message = data.toString()
+        return if message.search('is now called') >= 0
+        return if errors; errors = true # filter errors
         process.stderr.write message
-        notify(1) 
-  
-    # watch vs build callbacks are slightly different
-    if options.watch then spawned.stdout.on('data', (data) -> notify(0)) else spawned.on('exit', (code) -> notify(code))
+      spawned.on('exit', (code) -> notify(code))
+
+    # watch if exists
+    if watch_list
+      # extract directory contents
+      if watch_list.length is 1 and fs.statSync(watch_list[0]).isDirectory()
+        watchDirectory(watch_list[0])
+      else
+        watchFiles(watch_list)
+
+    compile() # compile now
