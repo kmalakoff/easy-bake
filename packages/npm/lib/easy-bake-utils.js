@@ -74,6 +74,21 @@
     return _results;
   };
 
+  eb.utils.argsHasOutput = function(args) {
+    var index;
+    ((index = args.indexOf('-o')) >= 0) || ((index = args.indexOf('--output')) >= 0) || ((index = args.indexOf('>')) >= 0);
+    return index >= 0;
+  };
+
+  eb.utils.argsRemoveOutput = function(args) {
+    var index;
+    ((index = args.indexOf('-o')) >= 0) || ((index = args.indexOf('--output')) >= 0) || ((index = args.indexOf('>')) >= 0);
+    if (index < 0) {
+      return '';
+    }
+    return args.splice(index, 2)[1];
+  };
+
   eb.utils.getOptionsFileGroups = function(set_options, cwd, options) {
     var directories, directory, directory_slashed, file_groups, files, found_files, rel_directory, rel_file, search_query, target_files, unpathed_dir, _i, _j, _len, _len1;
     file_groups = [];
@@ -195,11 +210,12 @@
 
   eb.utils.resolveArguments = function(args, cwd) {
     return _.map(args, function(arg, index) {
-      var options;
-      if (arg[0] === '-' || !_.isString(arg)) {
+      var is_output, options;
+      if ((arg[0] === '-') || (arg[0] === '>') || !_.isString(arg)) {
         return arg;
       }
-      options = args[index - 1] === '-o' || args[index - 1] === '--output' ? {
+      is_output = eb.utils.argsHasOutput(args);
+      options = is_output ? {
         cwd: cwd,
         skip_require: true
       } : {

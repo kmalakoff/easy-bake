@@ -353,21 +353,13 @@
     }
 
     Concatenate.prototype.sourceFiles = function() {
-      var index, source_files;
-      source_files = _.clone(this.args);
-      if ((index = _.indexOf(source_files, '-o')) >= 0) {
-        source_files.splice(index, 2);
-      }
+      var source_files;
+      eb.utils.argsRemoveOutput(source_files = _.clone(this.args));
       return source_files;
     };
 
     Concatenate.prototype.target = function() {
-      var index;
-      if ((index = _.indexOf(this.args, '-o')) >= 0) {
-        return "" + this.args[index + 1];
-      } else {
-        return '';
-      }
+      return eb.utils.argsRemoveOutput(_.clone(this.args));
     };
 
     Concatenate.prototype.run = function(options, callback) {
@@ -447,9 +439,7 @@
       if ((index = _.indexOf(source_files, '-w')) >= 0) {
         source_files.splice(index, 1);
       }
-      if ((index = _.indexOf(source_files, '-o')) >= 0) {
-        source_files.splice(index, 2);
-      }
+      eb.utils.argsRemoveOutput(source_files);
       if ((index = _.indexOf(source_files, '-j')) >= 0) {
         source_files.splice(index, 2);
       }
@@ -460,8 +450,7 @@
     };
 
     Coffee.prototype.targetDirectory = function() {
-      var index;
-      return mb.pathNormalizeSafe((index = _.indexOf(this.args, '-o')) >= 0 ? "" + this.args[index + 1] : '');
+      return mb.pathNormalizeSafe(eb.utils.argsRemoveOutput(_.clone(this.args)));
     };
 
     Coffee.prototype.pathedTargets = function() {

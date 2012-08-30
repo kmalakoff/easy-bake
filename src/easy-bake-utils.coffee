@@ -47,6 +47,15 @@ eb.utils.extractSetCommands = (set_options, queue, cwd) ->
     else
       queue.push(new eb.command.RunCommand(command_name, command_args, {cwd: cwd}))
 
+eb.utils.argsHasOutput = (args) ->
+  ((index = args.indexOf('-o')) >= 0) or ((index = args.indexOf('--output')) >= 0) or ((index = args.indexOf('>')) >= 0)
+  return index >= 0
+
+eb.utils.argsRemoveOutput = (args) ->
+  ((index = args.indexOf('-o')) >= 0) or ((index = args.indexOf('--output')) >= 0) or ((index = args.indexOf('>')) >= 0)
+  return '' if index < 0
+  return args.splice(index, 2)[1]
+
 eb.utils.getOptionsFileGroups = (set_options, cwd, options) ->
   file_groups = []
   directories = if set_options.hasOwnProperty('directories') then set_options.directories else (if set_options.files then [cwd] else null)
@@ -114,9 +123,10 @@ eb.utils.extractCWD = (options={}) ->
 
 eb.utils.resolveArguments = (args, cwd) ->
   return _.map(args, (arg, index) ->
-    return arg if arg[0] is '-' or not _.isString(arg)  # skip options and non-string arguments
+    return arg if (arg[0] is '-') or (arg[0] is '>') or not _.isString(arg)  # skip options and non-string arguments
     # don't use require to reolve the output directory
-    options = if (args[index-1] is '-o' or args[index-1] is '--output') then {cwd: cwd, skip_require: true} else {cwd: cwd}
+    is_output = eb.utils.argsHasOutput(args)
+    options = if is_output then {cwd: cwd, skip_require: true} else {cwd: cwd}
     return mb.resolveSafe(arg, options)
   )
 

@@ -74,10 +74,10 @@ class eb.command.Copy
 class eb.command.Concatenate
   constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
   sourceFiles: ->
-    source_files = _.clone(@args)
-    source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-o')) >= 0)
+    eb.utils.argsRemoveOutput(source_files = _.clone(@args))
     return source_files
-  target: -> return if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else ''
+  target: ->
+    return eb.utils.argsRemoveOutput(_.clone(@args))
   run: (options={}, callback) ->
     # display
     if options.preview or options.verbose

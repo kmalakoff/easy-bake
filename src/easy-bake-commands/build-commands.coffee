@@ -4,11 +4,12 @@ class eb.command.Coffee
   sourceFiles: ->
     source_files = _.clone(@args)
     source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-w')) >= 0)
-    source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-o')) >= 0)
+    eb.utils.argsRemoveOutput(source_files)
     source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-j')) >= 0)
     source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-c')) >= 0)
     return source_files
-  targetDirectory: -> return mb.pathNormalizeSafe(if ((index = _.indexOf(@args, '-o')) >= 0) then "#{@args[index+1]}" else '')
+  targetDirectory: ->
+    return mb.pathNormalizeSafe(eb.utils.argsRemoveOutput(_.clone(@args)))
   pathedTargets: ->
     pathed_targets = []
     output_directory = @targetDirectory()
