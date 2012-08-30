@@ -61,6 +61,10 @@
         _results.push(queue.push(new eb.command.Copy(command_args, {
           cwd: cwd
         })));
+      } else if (command_name === 'cat') {
+        _results.push(queue.push(new eb.command.Concatenate(command_args, {
+          cwd: cwd
+        })));
       } else {
         _results.push(queue.push(new eb.command.RunCommand(command_name, command_args, {
           cwd: cwd

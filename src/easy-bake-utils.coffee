@@ -40,6 +40,9 @@ eb.utils.extractSetCommands = (set_options, queue, cwd) ->
     if command_name is 'cp'
       queue.push(new eb.command.Copy(command_args, {cwd: cwd}))
 
+    else if command_name is 'cat'
+      queue.push(new eb.command.Concatenate(command_args, {cwd: cwd}))
+
     # default
     else
       queue.push(new eb.command.RunCommand(command_name, command_args, {cwd: cwd}))

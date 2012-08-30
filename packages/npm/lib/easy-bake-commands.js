@@ -300,7 +300,7 @@
       }
       source = this.source();
       if (!existsSync(source)) {
-        console.log("command failed: cp " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source doesn't exist");
+        console.log("command failed: cp " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source Source '" + source + "' doesn't exist");
         if (typeof callback === "function") {
           callback(1);
         }
@@ -339,6 +339,95 @@
     };
 
     return Copy;
+
+  })();
+
+  eb.command.Concatenate = (function() {
+
+    function Concatenate(args, command_options) {
+      if (args == null) {
+        args = [];
+      }
+      this.command_options = command_options != null ? command_options : {};
+      this.args = eb.utils.resolveArguments(args, this.command_options.cwd);
+    }
+
+    Concatenate.prototype.sourceFiles = function() {
+      var index, source_files;
+      source_files = _.clone(this.args);
+      if ((index = _.indexOf(source_files, '-o')) >= 0) {
+        source_files.splice(index, 2);
+      }
+      return source_files;
+    };
+
+    Concatenate.prototype.target = function() {
+      var index;
+      if ((index = _.indexOf(this.args, '-o')) >= 0) {
+        return "" + this.args[index + 1];
+      } else {
+        return '';
+      }
+    };
+
+    Concatenate.prototype.run = function(options, callback) {
+      var error_count, source, source_files, target, target_dir, _i, _len;
+      if (options == null) {
+        options = {};
+      }
+      if (options.preview || options.verbose) {
+        console.log("cat " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')));
+        if (options.preview) {
+          if (typeof callback === "function") {
+            callback(0, this);
+          }
+          return;
+        }
+      }
+      source_files = this.sourceFiles();
+      target = this.target();
+      try {
+        target_dir = path.dirname(target);
+        if (!existsSync(target_dir)) {
+          wrench.mkdirSyncRecursive(target_dir, 0x1ff);
+        }
+      } catch (e) {
+        if (e.code !== 'EEXIST') {
+          throw e;
+        }
+      }
+      if (existsSync(target)) {
+        fs.unlinkSync(target);
+      }
+      error_count = 0;
+      for (_i = 0, _len = source_files.length; _i < _len; _i++) {
+        source = source_files[_i];
+        if (existsSync(source)) {
+          fs.appendFile(target, fs.readFileSync(source, 'utf8'), 'utf8');
+        } else {
+          console.log("command failed: cat " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source '" + source + "' doesn't exist");
+          error_count++;
+        }
+      }
+      if (error_count) {
+        timeLog("failed to concatenat " + (eb.utils.relativePath(target, this.command_options.cwd)));
+      } else {
+        if (!options.silent) {
+          timeLog("concatenated " + (eb.utils.relativePath(target, this.command_options.cwd)));
+        }
+      }
+      return typeof callback === "function" ? callback(error_count, this) : void 0;
+    };
+
+    Concatenate.prototype.createUndoCommand = function() {
+      if (this.args[0] === '-r') {
+        return new eb.command.Remove(['-r', this.target()], this.command_options);
+      } else {
+        return new eb.command.Remove([this.target()], this.command_options);
+      }
+    };
+
+    return Concatenate;
 
   })();
 
