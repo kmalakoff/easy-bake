@@ -21,8 +21,23 @@ class eb.command.Remove
 
 class eb.command.Copy
   constructor: (args=[], @command_options={}) -> @args = eb.utils.resolveArguments(args, @command_options.cwd)
+  isRecursive: -> return ((index = _.indexOf(@args, '-r')) >= 0)
+  isVersioned: -> return ((index = _.indexOf(@args, '-v')) >= 0)
   source: -> return @args[@args.length-2]
-  target: -> return @args[@args.length-1]
+  target: ->
+    target = @args[@args.length-1]
+    if @isVersioned()
+      source_dir = path.dirname(@source())
+      package_desc_path = path.join(source_dir, 'package.json')
+      (console.log("no package.json found for publish_npm: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless existsSync(package_desc_path)
+      package_desc = require(package_desc_path)
+      if target.endsWith('.min.js')
+        target = target.replace(/.min.js$/, "-#{package_desc.version}.min.js")
+      else if target.endsWith('-min.js')
+        target = target.replace(/-min.js$/, "-#{package_desc.version}-min.js")
+      else
+        target = target.replace(/.js$/, "-#{package_desc.version}.js")
+    return target
 
   run: (options={}, callback) ->
     # display
@@ -31,15 +46,20 @@ class eb.command.Copy
       (callback?(0, @); return) if options.preview
 
     # make the destination directory
+    source = @source()
+    target = @target()
     try
-      target_dir = path.dirname(@target())
+      target_dir = path.dirname(target)
       wrench.mkdirSyncRecursive(target_dir, 0o0777) unless existsSync(target_dir)
     catch e
       throw e if e.code isnt 'EEXIST'
 
     # do the copy
-    if @args[0]=='-r' then wrench.copyDirSyncRecursive(@source(), @target(), {preserve: true}) else fs.writeFileSync(@target(), fs.readFileSync(@source(), 'utf8'), 'utf8')
-    timeLog("copied #{eb.utils.relativePath(@target(), @command_options.cwd)}") unless options.silent
+    if @isRecursive()
+      wrench.copyDirSyncRecursive(source, target, {preserve: true})
+    else
+      fs.writeFileSync(target, fs.readFileSync(source, 'utf8'), 'utf8')
+    timeLog("copied #{eb.utils.relativePath(target, @command_options.cwd)}") unless options.silent
     callback?(0, @)
 
   createUndoCommand: ->

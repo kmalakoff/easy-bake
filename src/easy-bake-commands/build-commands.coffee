@@ -1,7 +1,7 @@
 class eb.command.Coffee
   constructor: (args=[], @command_options={}) ->
     @args = eb.utils.resolveArguments(args, @command_options.cwd)
-  sourceFiles: -> 
+  sourceFiles: ->
     source_files = _.clone(@args)
     source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-w')) >= 0)
     source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-o')) >= 0)
@@ -80,7 +80,7 @@ class eb.command.Coffee
     watchFile = (file) ->
       watchers[file].close() if watchers[file]
       stats = fs.statSync(file)
-      watchers[file] = fs.watch(file, -> 
+      watchers[file] = fs.watch(file, ->
         now_stats = fs.statSync(file)
         # process.stderr.write "#{file} stats: \n"
         return if stats.mtime.getTime() is now_stats.mtime.getTime() # no change
@@ -92,9 +92,9 @@ class eb.command.Coffee
       # unwatch any files
       watcher.close() for source, watcher of watchers; watchers = {}
 
-      # watch each file      
+      # watch each file
       for file in files
-        try 
+        try
           watchFile(file)
         catch e
           throw e if e.code isnt 'ENOENT'

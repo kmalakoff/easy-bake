@@ -46,5 +46,5 @@ module.exports =
 
   _postinstall:
     commands: [
-      'cp underscore vendor/underscore-latest.js'
+      'cp -v underscore vendor/underscore.js'
     ]

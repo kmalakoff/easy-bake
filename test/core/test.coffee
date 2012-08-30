@@ -72,9 +72,9 @@ exports.easy_bake_core =
 
   'Postinstall': (test) ->
     oven.clean(null, ->
-      test.ok(not existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'vendor/underscore-latest.js')), 'post install: underscore-latest removed')
+      test.ok(not existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'vendor/underscore-1.3.3.js')), 'post install: underscore-1.3.3 removed')
       oven.postinstall({}, ->
-        test.ok(existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'vendor/underscore-latest.js')), 'post install: underscore-latest exists')
+        test.ok(existsSync(path.join(SAMPLE_LIBRARY_ROOT, 'vendor/underscore-1.3.3.js')), 'post install: underscore-1.3.3 exists')
         test.done()
       )
     )

@@ -1,3 +1,5 @@
+
+
 class eb.command.RunTest
   constructor: (@command, @args=[], @command_options={}) ->
   usingPhantomJS: -> return (@command is 'phantomjs')
@@ -13,6 +15,11 @@ class eb.command.RunTest
     else
       scoped_args = eb.utils.relativeArguments(scoped_args, @command_options.cwd)
 
+    # nodeunit needs to be told to write to console
+    if @command is 'nodeunit'
+      scoped_args.unshift('machineout')
+      scoped_args.unshift('--reporter')
+
     # display
     if options.preview or options.verbose
       console.log("#{scoped_command} #{scoped_args.join(' ')}")
@@ -20,6 +27,10 @@ class eb.command.RunTest
 
     # execute
     spawned = spawn scoped_command, scoped_args
+    spawned.stdout.on 'data', (data) ->
+      message = data.toString()
+      message = "#{message.slice(0, MAX_MESSAGE_LENGTH)} ...[MORE]\n" if (message.length > MAX_MESSAGE_LENGTH) # clip to reasonable number of characters
+      process.stdout.write "*test: #{message}"
     spawned.on 'exit', (code) =>
       @exit_code = code
       if code is 0

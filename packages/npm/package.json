@@ -1,7 +1,7 @@
 {
   "author"        : {"name": "Kevin Malakoff", "url": "https://github.com/kmalakoff"},
   "name"          : "easy-bake",
-  "description"   : "EasyBake provide YAML-based Cakefile helpers for common CoffeeScript library packaging functionality",
+  "description"   : "EasyBake provides an efficient environment for CoffeeScript library developers: CoffeeScript/Javascript-based configuration files (no coding needed), workflow (build, watch, clean, preview) tests (QUnit, Jasime, NodeUnit, server-side emulation with ModuleBundler), publishing (git, npm, NuGet). Replace your Cakefile with a Bakefile today!",
   "keywords"      : ["easybake", "easy-bake", "coffeescript", "library", "build", "packaging", "package", "utility", "util"],
 
   "url"           : "http://kmalakoff.github.com/easy-bake/",
