@@ -299,6 +299,13 @@
         }
       }
       source = this.source();
+      if (!existsSync(source)) {
+        console.log("command failed: cp " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source doesn't exist");
+        if (typeof callback === "function") {
+          callback(1);
+        }
+        return;
+      }
       target = this.target();
       try {
         target_dir = path.dirname(target);

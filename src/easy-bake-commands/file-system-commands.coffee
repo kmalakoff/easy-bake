@@ -47,6 +47,7 @@ class eb.command.Copy
 
     # make the destination directory
     source = @source()
+    (console.log("command failed: cp #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}. Source doesn't exist"); callback?(1); return) unless existsSync(source)
     target = @target()
     try
       target_dir = path.dirname(target)
