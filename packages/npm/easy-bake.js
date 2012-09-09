@@ -84,31 +84,23 @@
     }
 
     Oven.prototype._validateConfig = function() {
-      var mode_name, set, set_name, _ref1, _results;
+      var mode_name, set, set_name, _ref1;
       if (!_.size(this.config)) {
         console.log("warning: an empty config file was loaded: " + config_pathed_filename);
       }
       _ref1 = this.config;
-      _results = [];
       for (set_name in _ref1) {
         set = _ref1[set_name];
         if (set_name.startsWith('_') && !_.contains(INTERNAL_SETS, set_name)) {
           console.log("warning: set name '" + set_name + "' is not a recognized internal set. It will be skipped.");
         }
-        _results.push((function() {
-          var _results1;
-          _results1 = [];
-          for (mode_name in set) {
-            if (mode_name.startsWith('_') && !_.contains(INTERNAL_MODES, mode_name)) {
-              _results1.push(console.log("warning: mode name '" + mode_name + "' is not a recognized internal mode. It will be skipped."));
-            } else {
-              _results1.push(void 0);
-            }
+        for (mode_name in set) {
+          if (mode_name.startsWith('_') && !_.contains(INTERNAL_MODES, mode_name)) {
+            console.log("warning: mode name '" + mode_name + "' is not a recognized internal mode. It will be skipped.");
           }
-          return _results1;
-        })());
+        }
       }
-      return _results;
+      return this;
     };
 
     Oven.prototype.postinstall = function(options, callback) {
@@ -236,12 +228,6 @@
         for (_i = 0, _len = file_groups.length; _i < _len; _i++) {
           file_group = file_groups[_i];
           args = [];
-          if (options.watch) {
-            args.push('-w');
-          }
-          if (set_options.bare) {
-            args.push('-b');
-          }
           if (set_options.join) {
             args.push('-j');
             args.push(set_options.join);
@@ -260,11 +246,9 @@
           } else {
             args.push(file_group.directory);
           }
-          command_queue.push(new eb.command.Coffee(args, {
-            cwd: file_group.directory,
-            compress: set_options.compress,
-            test: options.test
-          }));
+          command_queue.push(new eb.command.Coffee(args, _.defaults(_.defaults({
+            cwd: file_group.directory
+          }, set_options), options)));
         }
         eb.utils.extractSetCommands(set_options, command_queue, this.config_dir);
         if (set_options.bundles) {

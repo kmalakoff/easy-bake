@@ -3,7 +3,6 @@ class eb.command.Coffee
     @args = eb.utils.resolveArguments(args, @command_options.cwd)
   sourceFiles: ->
     source_files = _.clone(@args)
-    source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-w')) >= 0)
     eb.utils.argsRemoveOutput(source_files)
     source_files.splice(index, 2) if ((index = _.indexOf(source_files, '-j')) >= 0)
     source_files.splice(index, 1) if ((index = _.indexOf(source_files, '-c')) >= 0)
@@ -55,6 +54,10 @@ class eb.command.Coffee
           callback?(code, @)
           return
 
+        # wrap the result
+        if @command_options.wrapper
+          post_build_queue.push(new eb.command.Wrap(@command_options.wrapper, pathed_build_name, {cwd: @command_options.cwd}))
+
         # add to the compress queue
         if @isCompressed()
           post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], null))
@@ -68,14 +71,11 @@ class eb.command.Coffee
       if post_build_queue then post_build_queue.run(options, => callback?(code, @)) else callback?(0, @)
 
     # set up command parameters
-    watch_index = _.indexOf(@args, '-w')
-    if watch_index >= 0
-      args = _.clone(@args)
-      args.splice(watch_index, 1)
+    if @command_options.watch
       watch_list = @sourceFiles()
       watchers = {}
-    else
-      args = @args
+    args = _.clone(@args)
+    args.unshift('-b') if @command_options.bare or @command_options.wrapper
     cwd = eb.utils.extractCWD(@command_options)
 
     watchFile = (file) ->
@@ -127,3 +127,21 @@ class eb.command.Coffee
         watchFiles(watch_list)
 
     compile() # compile now
+
+class eb.command.Wrap
+  constructor: (@wrapper, @file, @command_options) ->
+
+  run: (options={}, callback) ->
+    # display
+    if options.preview or options.verbose
+      console.log("wrap #{@file} with #{@wrapper}")
+      (callback?(0, @); return) if options.preview
+
+    pathed_wrapper = mb.resolveSafe(@wrapper, @command_options)
+    pathed_file = mb.resolveSafe(@file, @command_options)
+
+    wrapper_content = fs.readFileSync(pathed_wrapper, 'utf8')
+    file_content = fs.readFileSync(pathed_file, 'utf8')
+
+    wrapped_file = wrapper_content.toString().replace("'__REPLACE__'", file_content)
+    fs.writeFile(pathed_file, wrapped_file, 'utf8', -> callback(0))

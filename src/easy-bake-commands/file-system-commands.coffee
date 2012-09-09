@@ -29,7 +29,14 @@ class eb.command.Copy
     if @isVersioned()
       source_dir = path.dirname(@source())
       package_desc_path = path.join(source_dir, 'package.json')
-      (console.log("no package.json found for publish_npm: #{package_desc_path.replace(@config_dir, '')}"); callback?(1); return) unless existsSync(package_desc_path)
+      # try to find package.json one directory up, eg. /lib
+      unless existsSync(package_desc_path)
+        source_dir_components = source_dir.split('/')
+        source_dir_components.pop()
+        source_dir = source_dir_components.join('/')
+        package_desc_path = path.join(source_dir, 'package.json')
+        (console.log("no package.json found for cp: #{package_desc_path.replace(@config_dir, '')}"); return target) unless existsSync(package_desc_path)
+
       package_desc = require(package_desc_path)
       if target.endsWith('.min.js')
         target = target.replace(/.min.js$/, "-#{package_desc.version}.min.js")
@@ -47,7 +54,7 @@ class eb.command.Copy
 
     # get the source
     source = @source()
-    (console.log("command failed: cp #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}. Source Source '#{source}' doesn't exist"); callback?(1); return) unless existsSync(source)
+    (console.log("command failed: cp #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}. Source '#{source}' doesn't exist"); callback?(1); return) unless existsSync(source)
 
     # make the destination directory
     target = @target()

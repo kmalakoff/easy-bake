@@ -58,18 +58,19 @@
         command_args = components.slice(1);
       }
       if (command_name === 'cp') {
-        _results.push(queue.push(new eb.command.Copy(command_args, {
+        queue.push(new eb.command.Copy(command_args, {
           cwd: cwd
-        })));
+        }));
       } else if (command_name === 'cat') {
-        _results.push(queue.push(new eb.command.Concatenate(command_args, {
+        queue.push(new eb.command.Concatenate(command_args, {
           cwd: cwd
-        })));
+        }));
       } else {
-        _results.push(queue.push(new eb.command.RunCommand(command_name, command_args, {
+        queue.push(new eb.command.RunCommand(command_name, command_args, {
           cwd: cwd
-        })));
+        }));
       }
+      _results.push(this);
     }
     return _results;
   };

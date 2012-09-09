@@ -52,6 +52,7 @@ class eb.Oven
       # check for unrecognized modes
       for mode_name of set
         console.log("warning: mode name '#{mode_name}' is not a recognized internal mode. It will be skipped.") if mode_name.startsWith('_') and not _.contains(INTERNAL_MODES, mode_name)
+    @
 
   postinstall: (options={}, callback) ->
     command_queue = if options.queue then options.queue else new eb.command.Queue()
@@ -134,8 +135,6 @@ class eb.Oven
 
       for file_group in file_groups
         args = []
-        args.push('-w') if options.watch
-        args.push('-b') if set_options.bare
         if set_options.join
           args.push('-j')
           args.push(set_options.join)
@@ -148,7 +147,7 @@ class eb.Oven
           args.push(file_group.directory)
 
         # add the command
-        command_queue.push(new eb.command.Coffee(args, {cwd: file_group.directory, compress: set_options.compress, test: options.test}))
+        command_queue.push(new eb.command.Coffee(args, _.defaults(_.defaults({cwd: file_group.directory}, set_options), options)))
 
       # add commands
       eb.utils.extractSetCommands(set_options, command_queue, @config_dir)

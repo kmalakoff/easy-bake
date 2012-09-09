@@ -260,17 +260,20 @@
     };
 
     Copy.prototype.target = function() {
-      var package_desc, package_desc_path, source_dir, target;
+      var package_desc, package_desc_path, source_dir, source_dir_components, target;
       target = this.args[this.args.length - 1];
       if (this.isVersioned()) {
         source_dir = path.dirname(this.source());
         package_desc_path = path.join(source_dir, 'package.json');
         if (!existsSync(package_desc_path)) {
-          console.log("no package.json found for publish_npm: " + (package_desc_path.replace(this.config_dir, '')));
-          if (typeof callback === "function") {
-            callback(1);
+          source_dir_components = source_dir.split('/');
+          source_dir_components.pop();
+          source_dir = source_dir_components.join('/');
+          package_desc_path = path.join(source_dir, 'package.json');
+          if (!existsSync(package_desc_path)) {
+            console.log("no package.json found for cp: " + (package_desc_path.replace(this.config_dir, '')));
+            return target;
           }
-          return;
         }
         package_desc = require(package_desc_path);
         if (target.endsWith('.min.js')) {
@@ -300,7 +303,7 @@
       }
       source = this.source();
       if (!existsSync(source)) {
-        console.log("command failed: cp " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source Source '" + source + "' doesn't exist");
+        console.log("command failed: cp " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source '" + source + "' doesn't exist");
         if (typeof callback === "function") {
           callback(1);
         }
@@ -436,9 +439,6 @@
     Coffee.prototype.sourceFiles = function() {
       var index, source_files;
       source_files = _.clone(this.args);
-      if ((index = _.indexOf(source_files, '-w')) >= 0) {
-        source_files.splice(index, 1);
-      }
       eb.utils.argsRemoveOutput(source_files);
       if ((index = _.indexOf(source_files, '-j')) >= 0) {
         source_files.splice(index, 2);
@@ -485,7 +485,7 @@
     };
 
     Coffee.prototype.run = function(options, callback) {
-      var args, compile, cwd, notify, watchDirectory, watchFile, watchFiles, watch_index, watch_list, watchers,
+      var args, compile, cwd, notify, watchDirectory, watchFile, watchFiles, watch_list, watchers,
         _this = this;
       if (options == null) {
         options = {};
@@ -526,6 +526,11 @@
             }
             return;
           }
+          if (_this.command_options.wrapper) {
+            post_build_queue.push(new eb.command.Wrap(_this.command_options.wrapper, pathed_build_name, {
+              cwd: _this.command_options.cwd
+            }));
+          }
           if (_this.isCompressed()) {
             post_build_queue.push(new eb.command.RunCommand('uglifyjs', ['-o', eb.utils.compressedName(pathed_build_name), pathed_build_name], null));
           }
@@ -544,14 +549,13 @@
           return typeof callback === "function" ? callback(0, _this) : void 0;
         }
       };
-      watch_index = _.indexOf(this.args, '-w');
-      if (watch_index >= 0) {
-        args = _.clone(this.args);
-        args.splice(watch_index, 1);
+      if (this.command_options.watch) {
         watch_list = this.sourceFiles();
         watchers = {};
-      } else {
-        args = this.args;
+      }
+      args = _.clone(this.args);
+      if (this.command_options.bare || this.command_options.wrapper) {
+        args.unshift('-b');
       }
       cwd = eb.utils.extractCWD(this.command_options);
       watchFile = function(file) {
@@ -634,6 +638,42 @@
     };
 
     return Coffee;
+
+  })();
+
+  eb.command.Wrap = (function() {
+
+    function Wrap(wrapper, file, command_options) {
+      this.wrapper = wrapper;
+      this.file = file;
+      this.command_options = command_options;
+    }
+
+    Wrap.prototype.run = function(options, callback) {
+      var file_content, pathed_file, pathed_wrapper, wrapped_file, wrapper_content;
+      if (options == null) {
+        options = {};
+      }
+      if (options.preview || options.verbose) {
+        console.log("wrap " + this.file + " with " + this.wrapper);
+        if (options.preview) {
+          if (typeof callback === "function") {
+            callback(0, this);
+          }
+          return;
+        }
+      }
+      pathed_wrapper = mb.resolveSafe(this.wrapper, this.command_options);
+      pathed_file = mb.resolveSafe(this.file, this.command_options);
+      wrapper_content = fs.readFileSync(pathed_wrapper, 'utf8');
+      file_content = fs.readFileSync(pathed_file, 'utf8');
+      wrapped_file = wrapper_content.toString().replace("'__REPLACE__'", file_content);
+      return fs.writeFile(pathed_file, wrapped_file, 'utf8', function() {
+        return callback(0);
+      });
+    };
+
+    return Wrap;
 
   })();
 

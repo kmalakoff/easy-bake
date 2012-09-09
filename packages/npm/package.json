@@ -27,5 +27,5 @@
     "bake":     "./bin/bake",
     "nuget":     "./bin/nuget"
   },
-  "version"       : "0.1.7"
+  "version"       : "0.1.8"
 }

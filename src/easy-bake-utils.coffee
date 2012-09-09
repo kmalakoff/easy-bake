@@ -46,6 +46,7 @@ eb.utils.extractSetCommands = (set_options, queue, cwd) ->
     # default
     else
       queue.push(new eb.command.RunCommand(command_name, command_args, {cwd: cwd}))
+    @
 
 eb.utils.argsHasOutput = (args) ->
   ((index = args.indexOf('-o')) >= 0) or ((index = args.indexOf('--output')) >= 0) or ((index = args.indexOf('>')) >= 0)
