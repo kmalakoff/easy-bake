@@ -56,7 +56,7 @@ class eb.command.PublishNuGet
     for file in files
       pathed_filename = path.join(package_path, file.get('src'))
       pathed_filename = pathed_filename.replace(/\\/g, '\/')
-      (console.log("skipping publish_npm for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless existsSync(pathed_filename)
+      (console.log("skipping publish_nuget for: #{package_desc_path} (main file missing...do you need to build it?)"); callback?(1); return) unless existsSync(pathed_filename)
 
     local_queue = new eb.command.Queue()
     if @command_options.force

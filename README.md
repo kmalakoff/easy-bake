@@ -205,7 +205,7 @@ and a .travis.yaml to your project root file like:
 ```
 language: node_js
 node_js:
-  - 0.7 # development version of 0.8, may be unstable
+  - 0.8
 
 before_script:
   - "export PATH=node_modules/.bin:node_modules/easy-bake/node_modules/.bin:$PATH"
