@@ -503,9 +503,7 @@
         var build_directory, output_directory, output_names, pathed_build_name, post_build_queue, source_name, _i, _len;
         output_directory = _this.targetDirectory();
         output_names = _this.pathedTargets();
-        if (_this.isCompressed() || (_this.runsTests() && _this.already_run)) {
-          post_build_queue = new eb.command.Queue();
-        }
+        post_build_queue = new eb.command.Queue();
         for (_i = 0, _len = output_names.length; _i < _len; _i++) {
           source_name = output_names[_i];
           build_directory = mb.resolveSafe(output_directory, {
@@ -541,13 +539,9 @@
           }));
         }
         _this.already_run = true;
-        if (post_build_queue) {
-          return post_build_queue.run(options, function() {
-            return typeof callback === "function" ? callback(code, _this) : void 0;
-          });
-        } else {
-          return typeof callback === "function" ? callback(0, _this) : void 0;
-        }
+        return post_build_queue.run(options, function() {
+          return typeof callback === "function" ? callback(code, _this) : void 0;
+        });
       };
       if (this.command_options.watch) {
         watch_list = this.sourceFiles();

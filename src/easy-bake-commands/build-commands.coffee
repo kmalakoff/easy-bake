@@ -39,8 +39,7 @@ class eb.command.Coffee
       output_directory = @targetDirectory()
       output_names = @pathedTargets()
 
-      if @isCompressed() or (@runsTests() and @already_run)
-        post_build_queue = new eb.command.Queue()
+      post_build_queue = new eb.command.Queue()
 
       for source_name in output_names
         build_directory = mb.resolveSafe(output_directory, {cwd: path.dirname(source_name)})
@@ -68,7 +67,7 @@ class eb.command.Coffee
       @already_run = true
 
       # run the post build queue
-      if post_build_queue then post_build_queue.run(options, => callback?(code, @)) else callback?(0, @)
+      post_build_queue.run(options, => callback?(code, @))
 
     # set up command parameters
     if @command_options.watch
