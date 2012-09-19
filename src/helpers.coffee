@@ -8,4 +8,7 @@ MAX_MESSAGE_LENGTH = 128
 timeLog = (message) -> console.log("#{(new Date).toLocaleTimeString()} - #{message}")
 
 String::startsWith = (start) ->
-  return this.indexOf(start) is 0
+  return @indexOf(start) is 0
+
+String::endsWith = (end) ->
+  return @indexOf(end) is @length - end.length

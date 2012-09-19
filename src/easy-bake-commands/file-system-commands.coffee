@@ -38,12 +38,12 @@ class eb.command.Copy
         (console.log("no package.json found for cp: #{package_desc_path.replace(@config_dir, '')}"); return target) unless existsSync(package_desc_path)
 
       package_desc = require(package_desc_path)
-      if target.endsWith('.min.js')
-        target = target.replace(/.min.js$/, "-#{package_desc.version}.min.js")
-      else if target.endsWith('-min.js')
-        target = target.replace(/-min.js$/, "-#{package_desc.version}-min.js")
-      else
-        target = target.replace(/.js$/, "-#{package_desc.version}.js")
+      extension = path.extname(target)
+      if target.endsWith(".min#{extension}")
+        extension = ".min#{extension}"
+      else if target.endsWith("-min#{extension}")
+        extension = "-min#{extension}"
+      target = target.replace(extension, "-#{package_desc.version}#{extension}")
     return target
 
   run: (options={}, callback) ->
