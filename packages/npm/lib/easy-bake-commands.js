@@ -368,7 +368,7 @@
     };
 
     Concatenate.prototype.run = function(options, callback) {
-      var e, error_count, source, source_files, target, target_dir, _i, _len;
+      var data, e, error_count, source, source_files, target, target_dir, _i, _len;
       if (options == null) {
         options = {};
       }
@@ -401,7 +401,11 @@
       for (_i = 0, _len = source_files.length; _i < _len; _i++) {
         source = source_files[_i];
         if (existsSync(source)) {
-          fs.appendFileSync(target, fs.readFileSync(source, 'utf8'), 'utf8');
+          data = fs.readFileSync(source, 'utf8');
+          if (data[data.length - 1] !== '\n') {
+            data += '\n';
+          }
+          fs.appendFileSync(target, data, 'utf8');
         } else {
           console.log("command failed: cat " + (eb.utils.relativeArguments(this.args, this.command_options.cwd).join(' ')) + ". Source '" + source + "' doesn't exist");
           error_count++;
