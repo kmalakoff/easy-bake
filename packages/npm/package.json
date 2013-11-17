@@ -1,31 +1,31 @@
 {
   "author"        : {"name": "Kevin Malakoff", "url": "https://github.com/kmalakoff"},
   "name"          : "easy-bake",
+  "version"       : "0.1.9",
+  "main"          : "easy-bake.js",
   "description"   : "EasyBake provides an efficient environment for CoffeeScript library developers: CoffeeScript/Javascript-based configuration files (no coding needed), workflow (build, watch, clean, preview) tests (QUnit, Jasime, NodeUnit, server-side emulation with ModuleBundler), publishing (git, npm, NuGet). Replace your Cakefile with a Bakefile today!",
   "keywords"      : ["easybake", "easy-bake", "coffeescript", "library", "build", "packaging", "package", "utility", "util"],
 
   "url"           : "http://kmalakoff.github.com/easy-bake/",
   "homepage"      : "http://kmalakoff.github.com/easy-bake/",
-  "repository": {
-    "type": "git",
-    "url": "http://github.com/kmalakoff/easy-bake.git"
-  },
+  "repository": {"type": "git", "url": "http://github.com/kmalakoff/easy-bake.git"},
 
+  "scripts": {
+    "test": "bake test -c"
+  },
   "dependencies": {
-    "coffee-script": ">=1.3.3",
-    "commander": "1.0.0",
-    "underscore": ">=1.3.3",
-    "module-bundler": ">=0.1.0",
-    "glob-whatev": ">=0.1.7",
-    "wrench": ">=1.3.9",
-    "uglify-js": ">=1.3.0",
-    "elementtree": ">=0.1.1"
+    "commander": "*",
+    "phantomjs" : "*",
+    "underscore": "*",
+    "module-bundler": "*",
+    "glob-whatev": "*",
+    "wrench": "*",
+    "uglify-js": "*",
+    "elementtree": "*"
   },
 
-  "main"          : "easy-bake.js",
-  "bin":          {
-    "bake":     "./bin/bake",
-    "nuget":     "./bin/nuget"
-  },
-  "version"       : "0.1.8"
+  "bin": {
+    "bake": "./bin/bake",
+    "nuget": "./bin/nuget"
+  }
 }

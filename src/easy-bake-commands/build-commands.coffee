@@ -110,6 +110,7 @@ class eb.command.Coffee
     compile = ->
       errors = false
       spawned = spawn 'coffee', args, cwd
+      spawned.on 'error', (err) -> console.log "Failed to run command: coffee, args: #{args.join(', ')}. Error: #{err.message}"
       spawned.stderr.on 'data', (data) ->
         message = data.toString()
         return if message.search('is now called') >= 0

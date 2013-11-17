@@ -27,6 +27,7 @@ class eb.command.RunTest
 
     # execute
     spawned = spawn scoped_command, scoped_args
+    spawned.on 'error', (err) -> console.log "Failed to run command: #{scoped_command}, args: #{scoped_args.join(', ')}. Error: #{err.message}"
     spawned.stdout.on 'data', (data) ->
       message = data.toString()
       message = "#{message.slice(0, MAX_MESSAGE_LENGTH)} ...[MORE]\n" if (message.length > MAX_MESSAGE_LENGTH) # clip to reasonable number of characters
