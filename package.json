@@ -14,12 +14,12 @@
     "test": "bake test -c"
   },
   "devDependencies": {
-    "coffee-script": "*",
     "nodeunit": "*",
     "codo": "*",
     "easy-bake": "*"
   },
   "dependencies": {
+    "coffee-script": "*",
     "commander": "*",
     "phantomjs" : "*",
     "underscore": "*",
