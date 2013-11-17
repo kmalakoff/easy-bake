@@ -107,7 +107,9 @@ class eb.command.Concatenate
     error_count = 0
     for source in source_files
       if existsSync(source)
-        fs.appendFileSync(target, fs.readFileSync(source, 'utf8'), 'utf8')
+        data = fs.readFileSync(source, 'utf8')
+        data += '\n' unless data[data.length-1] is '\n'
+        fs.appendFileSync(target, data, 'utf8')
       else
         (console.log("command failed: cat #{eb.utils.relativeArguments(@args, @command_options.cwd).join(' ')}. Source '#{source}' doesn't exist"); error_count++)
 
