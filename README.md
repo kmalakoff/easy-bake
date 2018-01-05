@@ -15,6 +15,8 @@ EasyBake provides Coffeescript config file-based Cakefile helpers for common Cof
 Commands Supplied by EasyBake
 -----------------------
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/kmalakoff/easy-bake.svg)](https://greenkeeper.io/)
+
 - **bake postinstall**: runs postinstall steps like copying dependent client scripts to vendor directory, etc.
 - **bake clean**: cleans the project of all compiled files
 - **bake build**: performs a single build
